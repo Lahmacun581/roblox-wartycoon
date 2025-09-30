@@ -343,6 +343,73 @@ local Content = Instance.new("Frame")
     
     AutoCollectBtn.MouseButton1Click:Connect(autoCollect)
     
+    -- Collector'a Para Ekle (CollectCashEvent Spam)
+    local AddToCollectorBtn = Instance.new("TextButton")
+    AddToCollectorBtn.Size = UDim2.new(0, 150, 0, 30)
+    AddToCollectorBtn.Position = UDim2.new(0, 170, 0, 10)
+    AddToCollectorBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+    AddToCollectorBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    AddToCollectorBtn.Text = "Spam Collect"
+    AddToCollectorBtn.Font = Enum.Font.SourceSansBold
+    AddToCollectorBtn.TextSize = 16
+    AddToCollectorBtn.Parent = Content
+    
+    local AddToCollectorCorner = Instance.new("UICorner")
+    AddToCollectorCorner.CornerRadius = UDim.new(0, 6)
+    AddToCollectorCorner.Parent = AddToCollectorBtn
+    
+    local spamming = false
+    local spamConnection
+    
+    local function spamCollect()
+        if spamming then
+            -- Durdur
+            spamming = false
+            if spamConnection then
+                spamConnection:Disconnect()
+                spamConnection = nil
+            end
+            AddToCollectorBtn.Text = "Spam Collect"
+            AddToCollectorBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+            return
+        end
+        
+        -- Başlat
+        spamming = true
+        AddToCollectorBtn.Text = "STOP Spam"
+        AddToCollectorBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        
+        -- CollectCashEvent'i bul
+        local collectEvent = resolveRemoteEventByName(ReplicatedStorage, "CollectCash")
+        if not collectEvent then
+            collectEvent = resolveRemoteEventByName(ReplicatedStorage, "Collect")
+        end
+        
+        if collectEvent then
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Spam başlatıldı: " .. collectEvent.Name; Duration = 2})
+            end)
+            
+            -- Her 0.1 saniyede bir CollectCashEvent'i çağır
+            spamConnection = RunService.Heartbeat:Connect(function()
+                if spamming then
+                    pcall(function()
+                        collectEvent:FireServer()
+                    end)
+                end
+            end)
+        else
+            spamming = false
+            AddToCollectorBtn.Text = "Spam Collect"
+            AddToCollectorBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "CollectCash event bulunamadı!"; Duration = 2})
+            end)
+        end
+    end
+    
+    AddToCollectorBtn.MouseButton1Click:Connect(spamCollect)
+    
     -- AddMoney RemoteEvent adı ayarlanabilir
     local CurrentAddMoneyName = "AddMoney"
     local AddMoneyRemote = resolveRemoteEventByName(ReplicatedStorage, CurrentAddMoneyName)
