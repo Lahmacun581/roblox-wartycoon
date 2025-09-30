@@ -27,12 +27,14 @@ if fovCircle then
     getgenv().WarTycoonGUI.FOVCircle = fovCircle
 end
 
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local StarterGui = game:GetService("StarterGui")
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 -- RemoteEvent bulucu (isim esnekliği ve descendant araması ile)
 local function resolveRemoteEventByName(root, name)
@@ -68,7 +70,14 @@ MainFrame.Position = UDim2.new(0.5, -240, 0.4, -210) -- ortaya yakın
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
 MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = false
 MainFrame.Parent = ScreenGui
+
+-- UI Corner for rounded edges
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
 
 -- Başlık çubuğu (tasarım amaçlı, sürüklemek için kullanışlı)
 local TitleBar = Instance.new("Frame")
@@ -77,7 +86,12 @@ TitleBar.Size = UDim2.new(1, 0, 0, 28)
 TitleBar.Position = UDim2.new(0, 0, 0, 0)
 TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 TitleBar.BorderSizePixel = 0
+TitleBar.Active = true
 TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
@@ -96,12 +110,25 @@ CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 28, 0, 20)
 CloseBtn.Position = UDim2.new(1, -36, 0, 4)
 CloseBtn.AnchorPoint = Vector2.new(0, 0)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 CloseBtn.BorderSizePixel = 0
 CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.TextSize = 18
 CloseBtn.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseBtn
+
+-- Hover effect
+CloseBtn.MouseEnter:Connect(function()
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+end)
+CloseBtn.MouseLeave:Connect(function()
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+end)
 
 -- İçerik alanı (şimdilik boş, sonra ekleyeceğiz)
 local Content = Instance.new("Frame")
@@ -123,6 +150,10 @@ local Content = Instance.new("Frame")
     AddMoneyBtn.TextSize = 16
     AddMoneyBtn.Parent = Content
     
+    local AddMoneyCorner = Instance.new("UICorner")
+    AddMoneyCorner.CornerRadius = UDim.new(0, 6)
+    AddMoneyCorner.Parent = AddMoneyBtn
+    
     -- AddMoney RemoteEvent adı ayarlanabilir
     local CurrentAddMoneyName = "AddMoney"
     local AddMoneyRemote = resolveRemoteEventByName(ReplicatedStorage, CurrentAddMoneyName)
@@ -138,6 +169,10 @@ local Content = Instance.new("Frame")
     NameBox.Font = Enum.Font.SourceSans
     NameBox.TextSize = 16
     NameBox.Parent = Content
+    
+    local NameBoxCorner = Instance.new("UICorner")
+    NameBoxCorner.CornerRadius = UDim.new(0, 6)
+    NameBoxCorner.Parent = NameBox
 
     -- Yenile butonu
     local RefreshBtn = Instance.new("TextButton")
@@ -149,6 +184,10 @@ local Content = Instance.new("Frame")
     RefreshBtn.Font = Enum.Font.SourceSansBold
     RefreshBtn.TextSize = 16
     RefreshBtn.Parent = Content
+    
+    local RefreshCorner = Instance.new("UICorner")
+    RefreshCorner.CornerRadius = UDim.new(0, 6)
+    RefreshCorner.Parent = RefreshBtn
 
     -- Listele butonu (kandideleri aç/kapat)
     local ListBtn = Instance.new("TextButton")
@@ -160,6 +199,10 @@ local Content = Instance.new("Frame")
     ListBtn.Font = Enum.Font.SourceSansBold
     ListBtn.TextSize = 16
     ListBtn.Parent = Content
+    
+    local ListCorner = Instance.new("UICorner")
+    ListCorner.CornerRadius = UDim.new(0, 6)
+    ListCorner.Parent = ListBtn
 
     -- Auto-scan: cash/money RemoteEvent'lerini bul
     local ScanBtn = Instance.new("TextButton")
@@ -171,6 +214,10 @@ local Content = Instance.new("Frame")
     ScanBtn.Font = Enum.Font.SourceSansBold
     ScanBtn.TextSize = 16
     ScanBtn.Parent = Content
+    
+    local ScanCorner = Instance.new("UICorner")
+    ScanCorner.CornerRadius = UDim.new(0, 6)
+    ScanCorner.Parent = ScanBtn
 
     local ScanResult = Instance.new("TextLabel")
     ScanResult.Size = UDim2.new(0, 290, 0, 60)
@@ -184,6 +231,10 @@ local Content = Instance.new("Frame")
     ScanResult.TextXAlignment = Enum.TextXAlignment.Left
     ScanResult.TextYAlignment = Enum.TextYAlignment.Top
     ScanResult.Parent = Content
+    
+    local ScanResultCorner = Instance.new("UICorner")
+    ScanResultCorner.CornerRadius = UDim.new(0, 6)
+    ScanResultCorner.Parent = ScanResult
 
     local function scanCashMoney()
         local keywords = {"cash", "money", "currency", "coin", "dollar", "add", "give"}
@@ -233,6 +284,10 @@ local Content = Instance.new("Frame")
     ESPBtn.Font = Enum.Font.SourceSansBold
     ESPBtn.TextSize = 16
     ESPBtn.Parent = Content
+    
+    local ESPCorner = Instance.new("UICorner")
+    ESPCorner.CornerRadius = UDim.new(0, 6)
+    ESPCorner.Parent = ESPBtn
 
     local function createESP(player)
         if not player.Character or ESPObjects[player] then return end
@@ -610,51 +665,34 @@ local Content = Instance.new("Frame")
         end
     end)
 
--- GUI'yi sürüklenebilir yapmak (modern - UserInputService ile)
-local UserInputService = game:GetService("UserInputService")
-
+-- GUI'yi sürüklenebilir yapmak (düzeltilmiş)
 local dragging = false
-local dragInput = nil
 local dragStart = nil
 local startPos = nil
 
-local function update(input)
-    if not dragging or not input or not dragStart or not startPos then return end
-    local delta = input.Position - dragStart
-    MainFrame.Position = UDim2.new(
-        startPos.X.Scale,
-        startPos.X.Offset + delta.X,
-        startPos.Y.Scale,
-        startPos.Y.Offset + delta.Y
-    )
-end
-
 TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
+        
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
             end
         end)
-    elseif input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-    end
-end)
-
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
     end
 end)
 
