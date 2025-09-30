@@ -850,30 +850,63 @@ local PlayerContent = PlayerTab
         return closestPlayer
     end
     
-    -- Silent Aim hook (sadece bir kez)
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
+    -- Silent Aim hook (compat mode)
+    local silentAimConnection
+    local function setupSilentAim()
+        if silentAimConnection then
+            silentAimConnection:Disconnect()
+        end
         
-        -- Parantez düzeltildi
-        if SilentAimEnabled and method == "FireServer" and (self.Name:find("Fire") or self.Name:find("Shoot") or self.Name:find("Gun")) then
+        if not SilentAimEnabled then return end
+        
+        -- Alternatif yöntem: Mouse.Hit değiştirme
+        silentAimConnection = RunService.Heartbeat:Connect(function()
+            if not SilentAimEnabled then return end
+            
             local target = getClosestPlayer()
             if target and target.Character then
                 local head = target.Character:FindFirstChild("Head")
                 if head then
-                    -- İlk argüman pozisyon ise değiştir
-                    if typeof(args[1]) == "Vector3" then
-                        args[1] = head.Position
-                    elseif typeof(args[2]) == "Vector3" then
-                        args[2] = head.Position
+                    local mouse = LocalPlayer:GetMouse()
+                    if mouse then
+                        -- Mouse.Hit'i hedefin kafasına yönlendir
+                        local camera = workspace.CurrentCamera
+                        camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
                     end
                 end
             end
-        end
-        
-        return oldNamecall(self, unpack(args))
-    end)
+        end)
+    end
+    
+    -- hookmetamethod desteği varsa kullan
+    if hookmetamethod then
+        pcall(function()
+            local oldNamecall
+            oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+                local method = getnamecallmethod()
+                local args = {...}
+                
+                if SilentAimEnabled and method == "FireServer" and (self.Name:find("Fire") or self.Name:find("Shoot") or self.Name:find("Gun")) then
+                    local target = getClosestPlayer()
+                    if target and target.Character then
+                        local head = target.Character:FindFirstChild("Head")
+                        if head then
+                            if typeof(args[1]) == "Vector3" then
+                                args[1] = head.Position
+                            elseif typeof(args[2]) == "Vector3" then
+                                args[2] = head.Position
+                            end
+                        end
+                    end
+                end
+                
+                return oldNamecall(self, unpack(args))
+            end)
+            print("[SILENT AIM] hookmetamethod mode enabled")
+        end)
+    else
+        print("[SILENT AIM] Using Heartbeat mode (hookmetamethod not available)")
+    end
     
     SilentAimBtn.MouseButton1Click:Connect(function()
         SilentAimEnabled = not SilentAimEnabled
@@ -881,11 +914,17 @@ local PlayerContent = PlayerTab
         SilentAimBtn.BackgroundColor3 = SilentAimEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(200, 50, 50)
         
         if SilentAimEnabled then
+            setupSilentAim()
             pcall(function()
                 StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Silent Aim aktif! FOV içindeki hedeflere otomatik nisan alır."; Duration = 3})
             end)
             print("[SILENT AIM] Enabled - FOV Radius: " .. (fovCircle and fovCircle.Radius or "N/A"))
+            print("[SILENT AIM] Mode: " .. (hookmetamethod and "hookmetamethod" or "Heartbeat"))
         else
+            if silentAimConnection then
+                silentAimConnection:Disconnect()
+                silentAimConnection = nil
+            end
             print("[SILENT AIM] Disabled")
         end
     end)
