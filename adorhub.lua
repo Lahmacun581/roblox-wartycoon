@@ -1100,6 +1100,63 @@ do
         end
     end)
     
+    -- Fast Reload (Instant Reload)
+    getgenv().AdorHUB.Enabled.FastReload = false
+    
+    createToggle(CombatTab, "⚡ Fast Reload", Color3.fromRGB(255, 200, 100), function(enabled)
+        getgenv().AdorHUB.Enabled.FastReload = enabled
+        print("[AdorHUB] Fast Reload: " .. tostring(enabled))
+    end)
+    
+    -- Reload keywords
+    local reloadKeywords = {
+        "reload", "reloading", "reloadtime", "reloadspeed", "reloadduration"
+    }
+    
+    -- Fast Reload Loop
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AdorHUB.Enabled.FastReload then
+            local char = LocalPlayer.Character
+            if char then
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        -- Set reload time to 0 or very low
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = string.lower(obj.Name)
+                                for _, keyword in ipairs(reloadKeywords) do
+                                    if string.find(name, keyword) then
+                                        obj.Value = 0.01 -- Almost instant
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- Check config folders
+                        local configFolders = {"Configuration", "Config", "Settings", "Stats", "GunStats", "WeaponStats"}
+                        for _, folderName in ipairs(configFolders) do
+                            local folder = tool:FindFirstChild(folderName)
+                            if folder then
+                                for _, obj in ipairs(folder:GetDescendants()) do
+                                    if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                        local name = string.lower(obj.Name)
+                                        for _, keyword in ipairs(reloadKeywords) do
+                                            if string.find(name, keyword) then
+                                                obj.Value = 0.01
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    
     -- Hitbox Expander (Real Hitbox)
     getgenv().AdorHUB.Enabled.Hitbox = false
     getgenv().AdorHUB.HitboxSize = 20
