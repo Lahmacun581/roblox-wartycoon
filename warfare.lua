@@ -62,10 +62,10 @@ end
 -- Global tabloya kaydet
 getgenv().WarTycoonGUI.ScreenGui = ScreenGui
 
--- Ana çerçeve (boş)
+-- Ana çerçeve (genişletildi)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 480, 0, 420)          -- genişletildi
+MainFrame.Size = UDim2.new(0, 520, 0, 380)          -- optimize edildi
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0) -- tam ortada
 MainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
@@ -76,34 +76,63 @@ MainFrame.Parent = ScreenGui
 
 -- UI Corner for rounded edges
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = MainFrame
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainFrame.Parent = MainFrame
 
--- Başlık çubuğu (tasarım amaçlı, sürüklemek için kullanışlı)
+-- Gradient background
+local Gradient = Instance.new("UIGradient")
+Gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 35, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 25))
+}
+Gradient.Rotation = 90
+Gradient.Parent = MainFrame
+
+-- Başlık çubuğu (modern)
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 28)
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.Position = UDim2.new(0, 0, 0, 0)
-TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.BorderSizePixel = 0
 TitleBar.Active = true
 TitleBar.Parent = MainFrame
 
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = TitleBar
+
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 45, 50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 30))
+}
+TitleGradient.Rotation = 90
+TitleGradient.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, -40, 1, 0)
 TitleLabel.Position = UDim2.new(0, 8, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "War Tycoon GUI v2.0"  -- başlık eklendi
-TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
-TitleLabel.TextSize = 14
-TitleLabel.Font = Enum.Font.SourceSansSemibold
+TitleLabel.Text = "💣 War Tycoon GUI v2.5"  -- emoji eklendi
+TitleLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+TitleLabel.TextSize = 16
+TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
+
+-- Subtitle
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Size = UDim2.new(0, 200, 0, 15)
+Subtitle.Position = UDim2.new(0, 8, 0, 18)
+Subtitle.BackgroundTransparency = 1
+Subtitle.Text = "by Lahmacun581"
+Subtitle.TextColor3 = Color3.fromRGB(150, 150, 150)
+Subtitle.TextSize = 10
+Subtitle.Font = Enum.Font.Gotham
+Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+Subtitle.Parent = TitleBar
 -- Kapat (X) butonu
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Name = "CloseBtn"
@@ -130,14 +159,95 @@ CloseBtn.MouseLeave:Connect(function()
     CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 end)
 
--- İçerik alanı (şimdilik boş, sonra ekleyeceğiz)
-local Content = Instance.new("Frame")
-    Content.Name = "Content"
-    Content.Size = UDim2.new(1, -8, 1, -36)
-    Content.Position = UDim2.new(0, 4, 0, 32)
-    Content.BackgroundTransparency = 1
-    Content.BorderSizePixel = 0
-    Content.Parent = MainFrame
+-- Sekme butonları (Tabs)
+local TabBar = Instance.new("Frame")
+TabBar.Name = "TabBar"
+TabBar.Size = UDim2.new(1, -16, 0, 35)
+TabBar.Position = UDim2.new(0, 8, 0, 43)
+TabBar.BackgroundTransparency = 1
+TabBar.Parent = MainFrame
+
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.Padding = UDim.new(0, 8)
+TabLayout.Parent = TabBar
+
+-- Sekme içerikleri için container
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Name = "ContentContainer"
+ContentContainer.Size = UDim2.new(1, -16, 1, -90)
+ContentContainer.Position = UDim2.new(0, 8, 0, 85)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainFrame
+
+-- Tab sistemi
+local currentTab = nil
+local tabs = {}
+
+local function createTab(name, icon)
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Size = UDim2.new(0, 100, 0, 30)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    tabBtn.Text = icon .. " " .. name
+    tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    tabBtn.Font = Enum.Font.GothamSemibold
+    tabBtn.TextSize = 13
+    tabBtn.Parent = TabBar
+    
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 6)
+    tabCorner.Parent = tabBtn
+    
+    local tabContent = Instance.new("ScrollingFrame")
+    tabContent.Name = name .. "Content"
+    tabContent.Size = UDim2.new(1, 0, 1, 0)
+    tabContent.BackgroundTransparency = 1
+    tabContent.BorderSizePixel = 0
+    tabContent.ScrollBarThickness = 4
+    tabContent.Visible = false
+    tabContent.Parent = ContentContainer
+    
+    local contentLayout = Instance.new("UIListLayout")
+    contentLayout.Padding = UDim.new(0, 8)
+    contentLayout.Parent = tabContent
+    
+    local contentPadding = Instance.new("UIPadding")
+    contentPadding.PaddingTop = UDim.new(0, 8)
+    contentPadding.PaddingLeft = UDim.new(0, 8)
+    contentPadding.PaddingRight = UDim.new(0, 8)
+    contentPadding.Parent = tabContent
+    
+    tabs[name] = {button = tabBtn, content = tabContent}
+    
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, tab in pairs(tabs) do
+            tab.button.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+            tab.button.TextColor3 = Color3.fromRGB(200, 200, 200)
+            tab.content.Visible = false
+        end
+        tabBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+        tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tabContent.Visible = true
+        currentTab = name
+    end)
+    
+    return tabContent
+end
+
+-- Sekmeleri oluştur
+local MainTab = createTab("Main", "💰")
+local FarmTab = createTab("Farm", "⚡")
+local PlayerTab = createTab("Player", "👤")
+local MiscTab = createTab("Misc", "⚙️")
+
+-- İlk sekmeyi aç
+tabs["Main"].button.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+tabs["Main"].button.TextColor3 = Color3.fromRGB(255, 255, 255)
+tabs["Main"].content.Visible = true
+currentTab = "Main"
+
+-- Eski Content'i MainTab olarak kullan
+local Content = MainTab
     
     -- Para ekleme butonu
     local AddMoneyBtn = Instance.new("TextButton")
