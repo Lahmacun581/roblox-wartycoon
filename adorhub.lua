@@ -959,9 +959,13 @@ do
         print("[AdorHUB] Hitbox size set to: " .. value)
     end)
     
-    -- Hitbox Loop (Super Optimized - Only Head)
+    -- Hitbox Loop (Ultra Optimized - Only Head, Every 5 frames)
+    local hitboxFrameCount = 0
     RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.Hitbox then
+            hitboxFrameCount = hitboxFrameCount + 1
+            if hitboxFrameCount % 5 ~= 0 then return end -- Update every 5 frames for max FPS
+            
             local size = getgenv().AdorHUB.HitboxSize
             
             for _, player in ipairs(Players:GetPlayers()) do
