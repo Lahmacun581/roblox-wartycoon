@@ -656,52 +656,44 @@ end
 -- ===== PLAYER TAB =====
 do
     -- Speed Hack with Slider
-    local speedEnabled = false
-    local speedConn
-    local currentSpeed = 100
+    getgenv().AdorHUB.Enabled.Speed = false
+    getgenv().AdorHUB.SpeedValue = 100
     
-    local speedBtn = createToggle(PlayerTab, "🏃 Speed Hack", Color3.fromRGB(100, 150, 255), function(enabled)
-        speedEnabled = enabled
-        if enabled then
-            speedConn = RunService.Heartbeat:Connect(function()
-                if not speedEnabled then return end
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = currentSpeed
-                end
-            end)
-            getgenv().AdorHUB.Connections.Speed = speedConn
-            print("[AdorHUB] Speed Hack enabled - Speed: " .. currentSpeed)
-        else
-            if speedConn then 
-                speedConn:Disconnect()
-                speedConn = nil
-            end
+    createToggle(PlayerTab, "🏃 Speed Hack", Color3.fromRGB(100, 150, 255), function(enabled)
+        getgenv().AdorHUB.Enabled.Speed = enabled
+        print("[AdorHUB] Speed Hack: " .. tostring(enabled))
+        
+        if not enabled then
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.WalkSpeed = 16
             end
-            print("[AdorHUB] Speed Hack disabled")
         end
     end)
     
     createSlider(PlayerTab, "   Speed Value", 16, 500, 100, function(value)
-        currentSpeed = value
+        getgenv().AdorHUB.SpeedValue = value
+        print("[AdorHUB] Speed set to: " .. value)
+    end)
+    
+    -- Speed Loop (Always running)
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AdorHUB.Enabled.Speed then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = getgenv().AdorHUB.SpeedValue
+            end
+        end
     end)
     
     -- Super Jump
-    local jumpConn
-    createToggle(PlayerTab, "🦘 Super Jump (120)", Color3.fromRGB(150, 100, 255), function(enabled)
-        if enabled then
-            jumpConn = RunService.Heartbeat:Connect(function()
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.JumpPower = 120
-                end
-            end)
-            getgenv().AdorHUB.Connections.Jump = jumpConn
-        else
-            if jumpConn then jumpConn:Disconnect() end
+    getgenv().AdorHUB.Enabled.Jump = false
+    
+    createToggle(PlayerTab, "🦘 Super Jump", Color3.fromRGB(150, 100, 255), function(enabled)
+        getgenv().AdorHUB.Enabled.Jump = enabled
+        print("[AdorHUB] Super Jump: " .. tostring(enabled))
+        
+        if not enabled then
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.JumpPower = 50
@@ -709,27 +701,31 @@ do
         end
     end)
     
-    -- Infinite Jump
-    local infJumpEnabled = false
-    local infJumpConn
-    createToggle(PlayerTab, "♾️ Infinite Jump", Color3.fromRGB(255, 150, 100), function(enabled)
-        infJumpEnabled = enabled
-        if enabled then
-            infJumpConn = UserInputService.JumpRequest:Connect(function()
-                if not infJumpEnabled then return end
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                end
-            end)
-            getgenv().AdorHUB.Connections.InfJump = infJumpConn
-            print("[AdorHUB] Infinite Jump enabled")
-        else
-            if infJumpConn then 
-                infJumpConn:Disconnect()
-                infJumpConn = nil
+    -- Jump Loop
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AdorHUB.Enabled.Jump then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.JumpPower = 120
             end
-            print("[AdorHUB] Infinite Jump disabled")
+        end
+    end)
+    
+    -- Infinite Jump
+    getgenv().AdorHUB.Enabled.InfJump = false
+    
+    createToggle(PlayerTab, "♾️ Infinite Jump", Color3.fromRGB(255, 150, 100), function(enabled)
+        getgenv().AdorHUB.Enabled.InfJump = enabled
+        print("[AdorHUB] Infinite Jump: " .. tostring(enabled))
+    end)
+    
+    -- Infinite Jump Handler
+    UserInputService.JumpRequest:Connect(function()
+        if getgenv().AdorHUB.Enabled.InfJump then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
         end
     end)
     
@@ -807,66 +803,56 @@ do
     end)
     
     -- Noclip
-    local noclipEnabled = false
-    local noclipConn
+    getgenv().AdorHUB.Enabled.Noclip = false
+    
     createToggle(PlayerTab, "👻 Noclip", Color3.fromRGB(200, 100, 255), function(enabled)
-        noclipEnabled = enabled
+        getgenv().AdorHUB.Enabled.Noclip = enabled
+        print("[AdorHUB] Noclip: " .. tostring(enabled))
         
-        if enabled then
-            noclipConn = RunService.Stepped:Connect(function()
-                if not noclipEnabled then return end
-                local char = LocalPlayer.Character
-                if char then
-                    for _, part in pairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                            part.CanCollide = false
-                        end
-                    end
-                end
-            end)
-            getgenv().AdorHUB.Connections.Noclip = noclipConn
-            print("[AdorHUB] Noclip enabled")
-        else
-            if noclipConn then 
-                noclipConn:Disconnect()
-                noclipConn = nil
-            end
+        if not enabled then
             local char = LocalPlayer.Character
             if char then
                 for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    if part:IsA("BasePart") then
                         part.CanCollide = true
                     end
                 end
             end
-            print("[AdorHUB] Noclip disabled")
+        end
+    end)
+    
+    -- Noclip Loop
+    RunService.Stepped:Connect(function()
+        if getgenv().AdorHUB.Enabled.Noclip then
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
         end
     end)
     
     -- God Mode (Anti-Damage)
-    local godEnabled = false
-    local godConn
+    getgenv().AdorHUB.Enabled.God = false
+    
     createToggle(PlayerTab, "🛡️ God Mode", Color3.fromRGB(255, 200, 100), function(enabled)
-        godEnabled = enabled
-        if enabled then
-            godConn = RunService.Heartbeat:Connect(function()
-                if not godEnabled then return end
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    local hum = char.Humanoid
-                    if hum.Health < hum.MaxHealth then
-                        hum.Health = hum.MaxHealth
-                    end
+        getgenv().AdorHUB.Enabled.God = enabled
+        print("[AdorHUB] God Mode: " .. tostring(enabled))
+    end)
+    
+    -- God Mode Loop
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AdorHUB.Enabled.God then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                local hum = char.Humanoid
+                if hum.Health < hum.MaxHealth then
+                    hum.Health = hum.MaxHealth
                 end
-            end)
-            getgenv().AdorHUB.Connections.God = godConn
-            print("[AdorHUB] God Mode enabled")
-        else
-            if godConn then 
-                godConn:Disconnect()
-                godConn = nil
             end
-            print("[AdorHUB] God Mode disabled")
         end
     end)
     
