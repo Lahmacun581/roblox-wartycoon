@@ -266,6 +266,11 @@ local function createTab(name, icon, color)
     contentLayout.Padding = UDim.new(0, 10)
     contentLayout.Parent = tabContent
     
+    -- Auto-update canvas size
+    contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        tabContent.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 20)
+    end)
+    
     local contentPadding = Instance.new("UIPadding")
     contentPadding.PaddingTop = UDim.new(0, 10)
     contentPadding.PaddingLeft = UDim.new(0, 10)
@@ -450,14 +455,6 @@ local function createButton(parent, text, color, callback)
         btn.MouseButton1Click:Connect(callback)
     end
     
-    -- Auto-update canvas size
-    task.spawn(function()
-        task.wait(0.1)
-        if parent:IsA("ScrollingFrame") then
-            parent.CanvasSize = UDim2.new(0, 0, 0, parent.UIListLayout.AbsoluteContentSize.Y + 20)
-        end
-    end)
-    
     return btn
 end
 
@@ -516,14 +513,6 @@ local function createToggle(parent, text, color, callback)
             if not success then
                 warn("[AdorHUB] Error in " .. text .. " callback: " .. tostring(err))
             end
-        end
-    end)
-    
-    -- Auto-update canvas size
-    task.spawn(function()
-        task.wait(0.1)
-        if parent:IsA("ScrollingFrame") then
-            parent.CanvasSize = UDim2.new(0, 0, 0, parent.UIListLayout.AbsoluteContentSize.Y + 20)
         end
     end)
     
@@ -632,14 +621,6 @@ local function createSlider(parent, text, min, max, default, callback)
             if callback then
                 callback(value)
             end
-        end
-    end)
-    
-    -- Auto-update canvas size
-    task.spawn(function()
-        task.wait(0.1)
-        if parent:IsA("ScrollingFrame") then
-            parent.CanvasSize = UDim2.new(0, 0, 0, parent.UIListLayout.AbsoluteContentSize.Y + 20)
         end
     end)
     
