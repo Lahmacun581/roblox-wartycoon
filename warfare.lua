@@ -591,6 +591,95 @@ local PlayerContent = PlayerTab
     RefreshTPCorner.Parent = RefreshTPBtn
     RefreshTPBtn.MouseButton1Click:Connect(updateTPList)
     
+    -- Infinite Ammo Toggle
+    local InfAmmoEnabled = false
+    local InfAmmoBtn = Instance.new("TextButton")
+    InfAmmoBtn.Size = UDim2.new(1, -16, 0, 40)
+    InfAmmoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 100)
+    InfAmmoBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    InfAmmoBtn.Text = "🔫 Infinite Ammo: OFF"
+    InfAmmoBtn.Font = Enum.Font.SourceSansBold
+    InfAmmoBtn.TextSize = 16
+    InfAmmoBtn.Parent = PlayerContent
+    local InfAmmoCorner = Instance.new("UICorner")
+    InfAmmoCorner.CornerRadius = UDim.new(0, 6)
+    InfAmmoCorner.Parent = InfAmmoBtn
+    
+    local ammoConnection
+    InfAmmoBtn.MouseButton1Click:Connect(function()
+        InfAmmoEnabled = not InfAmmoEnabled
+        InfAmmoBtn.Text = "🔫 Infinite Ammo: " .. (InfAmmoEnabled and "ON" or "OFF")
+        InfAmmoBtn.BackgroundColor3 = InfAmmoEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(200, 50, 100)
+        
+        if InfAmmoEnabled then
+            ammoConnection = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            -- Ammo değerlerini bul ve maksimuma çıkar
+                            for _, obj in ipairs(tool:GetDescendants()) do
+                                if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                    local name = string.lower(obj.Name)
+                                    if string.find(name, "ammo") or string.find(name, "clip") or string.find(name, "mag") then
+                                        obj.Value = 999
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if ammoConnection then
+                ammoConnection:Disconnect()
+                ammoConnection = nil
+            end
+        end
+    end)
+    
+    -- No Recoil Toggle
+    local NoRecoilEnabled = false
+    local NoRecoilBtn = Instance.new("TextButton")
+    NoRecoilBtn.Size = UDim2.new(1, -16, 0, 40)
+    NoRecoilBtn.BackgroundColor3 = Color3.fromRGB(150, 100, 200)
+    NoRecoilBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    NoRecoilBtn.Text = "🎯 No Recoil: OFF"
+    NoRecoilBtn.Font = Enum.Font.SourceSansBold
+    NoRecoilBtn.TextSize = 16
+    NoRecoilBtn.Parent = PlayerContent
+    local NoRecoilCorner = Instance.new("UICorner")
+    NoRecoilCorner.CornerRadius = UDim.new(0, 6)
+    NoRecoilCorner.Parent = NoRecoilBtn
+    
+    NoRecoilBtn.MouseButton1Click:Connect(function()
+        NoRecoilEnabled = not NoRecoilEnabled
+        NoRecoilBtn.Text = "🎯 No Recoil: " .. (NoRecoilEnabled and "ON" or "OFF")
+        NoRecoilBtn.BackgroundColor3 = NoRecoilEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(150, 100, 200)
+        
+        if NoRecoilEnabled then
+            -- Recoil değerlerini sıfırla
+            RunService.Heartbeat:Connect(function()
+                if not NoRecoilEnabled then return end
+                local char = LocalPlayer.Character
+                if char then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            for _, obj in ipairs(tool:GetDescendants()) do
+                                if obj:IsA("NumberValue") then
+                                    local name = string.lower(obj.Name)
+                                    if string.find(name, "recoil") or string.find(name, "spread") then
+                                        obj.Value = 0
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+    
 -- ===== MISC TAB: Debug Araçları =====
 local MiscContent = MiscTab
 
