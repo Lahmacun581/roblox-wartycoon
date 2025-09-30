@@ -277,6 +277,72 @@ local Content = Instance.new("Frame")
     
     ExplorerBtn.MouseButton1Click:Connect(listAllValues)
     
+    -- Auto Collect: ProximityPrompt tetikleyici
+    local AutoCollectBtn = Instance.new("TextButton")
+    AutoCollectBtn.Size = UDim2.new(0, 140, 0, 28)
+    AutoCollectBtn.Position = UDim2.new(0, 330, 0, 50)
+    AutoCollectBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+    AutoCollectBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    AutoCollectBtn.Text = "Auto Collect All"
+    AutoCollectBtn.Font = Enum.Font.SourceSansBold
+    AutoCollectBtn.TextSize = 16
+    AutoCollectBtn.Parent = Content
+    
+    local AutoCollectCorner = Instance.new("UICorner")
+    AutoCollectCorner.CornerRadius = UDim.new(0, 6)
+    AutoCollectCorner.Parent = AutoCollectBtn
+    
+    local function autoCollect()
+        local collected = 0
+        local workspace = game:GetService("Workspace")
+        
+        -- Tüm ProximityPrompt'ları bul ve tetikle
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local parent = obj.Parent
+                local parentName = parent and string.lower(parent.Name) or ""
+                
+                -- Para toplama ile ilgili prompt'ları bul
+                if string.find(parentName, "collect") or string.find(parentName, "cash") or string.find(parentName, "money") then
+                    -- ProximityPrompt'u tetikle
+                    pcall(function()
+                        fireproximityprompt(obj)
+                        collected = collected + 1
+                    end)
+                end
+            end
+        end
+        
+        -- Tüm BillboardGui'lerdeki "Toplanacak" yazılarını bul
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BillboardGui") then
+                for _, child in ipairs(obj:GetDescendants()) do
+                    if child:IsA("TextLabel") then
+                        local text = string.lower(child.Text)
+                        if string.find(text, "toplanacak") or string.find(text, "collect") then
+                            -- Parent objesindeki ProximityPrompt'u bul
+                            local prompt = obj.Parent:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                pcall(function()
+                                    fireproximityprompt(prompt)
+                                    collected = collected + 1
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        local msg = collected > 0 and ("Toplanan: " .. collected .. " collector") or "ProximityPrompt bulunamadı"
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = msg; Duration = 2})
+        end)
+        ScanResult.Text = msg
+    end
+    
+    AutoCollectBtn.MouseButton1Click:Connect(autoCollect)
+    
     -- AddMoney RemoteEvent adı ayarlanabilir
     local CurrentAddMoneyName = "AddMoney"
     local AddMoneyRemote = resolveRemoteEventByName(ReplicatedStorage, CurrentAddMoneyName)
