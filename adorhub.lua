@@ -835,23 +835,96 @@ do
         end
     end)
     
-    -- God Mode (Anti-Damage)
+    -- God Mode (Advanced - Anti-Damage + Force Field)
     getgenv().AdorHUB.Enabled.God = false
     
     createToggle(PlayerTab, "🛡️ God Mode", Color3.fromRGB(255, 200, 100), function(enabled)
         getgenv().AdorHUB.Enabled.God = enabled
         print("[AdorHUB] God Mode: " .. tostring(enabled))
+        
+        local char = LocalPlayer.Character
+        if char then
+            -- Remove existing force field
+            local existingFF = char:FindFirstChild("ForceField")
+            if existingFF then
+                existingFF:Destroy()
+            end
+            
+            if enabled then
+                -- Add invisible force field
+                local ff = Instance.new("ForceField")
+                ff.Visible = false
+                ff.Name = "AdorHUB_FF"
+                ff.Parent = char
+            end
+        end
     end)
     
-    -- God Mode Loop
+    -- God Mode Loop (Advanced)
     RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.God then
             local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                local hum = char.Humanoid
-                if hum.Health < hum.MaxHealth then
-                    hum.Health = hum.MaxHealth
+            if char then
+                local hum = char:FindFirstChild("Humanoid")
+                if hum then
+                    -- 1. Restore health instantly
+                    if hum.Health < hum.MaxHealth then
+                        hum.Health = hum.MaxHealth
+                    end
+                    
+                    -- 2. Prevent death states
+                    if hum.Health <= 0 then
+                        hum.Health = hum.MaxHealth
+                    end
+                    
+                    -- 3. Remove negative effects
+                    for _, effect in pairs(hum:GetChildren()) do
+                        if effect:IsA("NumberValue") and effect.Name == "creator" then
+                            effect:Destroy()
+                        end
+                    end
                 end
+                
+                -- 4. Ensure force field exists
+                if not char:FindFirstChild("AdorHUB_FF") then
+                    local ff = Instance.new("ForceField")
+                    ff.Visible = false
+                    ff.Name = "AdorHUB_FF"
+                    ff.Parent = char
+                end
+                
+                -- 5. Remove damage indicators
+                for _, obj in pairs(char:GetDescendants()) do
+                    if obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                        obj:Destroy()
+                    end
+                end
+            end
+        else
+            -- Remove force field when disabled
+            local char = LocalPlayer.Character
+            if char then
+                local ff = char:FindFirstChild("AdorHUB_FF")
+                if ff then
+                    ff:Destroy()
+                end
+            end
+        end
+    end)
+    
+    -- God Mode: Prevent death on respawn
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        if getgenv().AdorHUB.Enabled.God then
+            task.wait(0.1)
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum.Health = hum.MaxHealth
+                
+                -- Add force field
+                local ff = Instance.new("ForceField")
+                ff.Visible = false
+                ff.Name = "AdorHUB_FF"
+                ff.Parent = char
             end
         end
     end)
