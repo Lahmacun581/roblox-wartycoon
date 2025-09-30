@@ -145,7 +145,7 @@ local Content = Instance.new("Frame")
     AddMoneyBtn.Position = UDim2.new(0, 10, 0, 10)
     AddMoneyBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
     AddMoneyBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    AddMoneyBtn.Text = "Add $100000"
+    AddMoneyBtn.Text = "Fire Remote"
     AddMoneyBtn.Font = Enum.Font.SourceSansBold
     AddMoneyBtn.TextSize = 16
     AddMoneyBtn.Parent = Content
@@ -153,6 +153,56 @@ local Content = Instance.new("Frame")
     local AddMoneyCorner = Instance.new("UICorner")
     AddMoneyCorner.CornerRadius = UDim.new(0, 6)
     AddMoneyCorner.Parent = AddMoneyBtn
+    
+    -- Collector Value Manipulator
+    local CollectorBtn = Instance.new("TextButton")
+    CollectorBtn.Size = UDim2.new(0, 150, 0, 30)
+    CollectorBtn.Position = UDim2.new(0, 170, 0, 10)
+    CollectorBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+    CollectorBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    CollectorBtn.Text = "Find Collectors"
+    CollectorBtn.Font = Enum.Font.SourceSansBold
+    CollectorBtn.TextSize = 16
+    CollectorBtn.Parent = Content
+    
+    local CollectorCorner = Instance.new("UICorner")
+    CollectorCorner.CornerRadius = UDim.new(0, 6)
+    CollectorCorner.Parent = CollectorBtn
+    
+    -- Collector bulucu ve manipulator
+    local function findAndModifyCollectors()
+        local found = 0
+        local workspace = game:GetService("Workspace")
+        
+        -- Workspace'deki tüm nesneleri tara
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            -- "Collector", "Dispenser", "Cash" gibi isimler ara
+            local name = string.lower(obj.Name)
+            if string.find(name, "collect") or string.find(name, "dispens") or string.find(name, "cash") then
+                -- Value, Amount, Money gibi NumberValue'lar ara
+                for _, child in ipairs(obj:GetDescendants()) do
+                    if child:IsA("NumberValue") or child:IsA("IntValue") then
+                        local childName = string.lower(child.Name)
+                        if string.find(childName, "value") or string.find(childName, "amount") or string.find(childName, "money") or string.find(childName, "cash") then
+                            -- Değeri artır
+                            local oldValue = child.Value
+                            child.Value = child.Value + 100000
+                            found = found + 1
+                            print(string.format("[Collector] %s.%s: %d -> %d", obj.Name, child.Name, oldValue, child.Value))
+                        end
+                    end
+                end
+            end
+        end
+        
+        local msg = found > 0 and ("Bulundu: " .. found .. " collector") or "Collector bulunamadı"
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = msg; Duration = 2})
+        end)
+        ScanResult.Text = msg .. "\n+$100000 eklendi"
+    end
+    
+    CollectorBtn.MouseButton1Click:Connect(findAndModifyCollectors)
     
     -- AddMoney RemoteEvent adı ayarlanabilir
     local CurrentAddMoneyName = "AddMoney"
@@ -237,7 +287,7 @@ local Content = Instance.new("Frame")
     ScanResultCorner.Parent = ScanResult
 
     local function scanCashMoney()
-        local keywords = {"cash", "money", "currency", "coin", "dollar", "add", "give"}
+        local keywords = {"cash", "money", "currency", "coin", "dollar", "add", "give", "collect", "dispenser", "value", "amount"}
         local found = {}
         for _, d in ipairs(ReplicatedStorage:GetDescendants()) do
             if d:IsA("RemoteEvent") then
