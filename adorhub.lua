@@ -1176,12 +1176,37 @@ do
                             end
                         end
                         
-                        -- 4. Disable reload animations
+                        -- 4. Disable reload animations (Aggressive)
                         for _, anim in ipairs(tool:GetDescendants()) do
                             if anim:IsA("Animation") then
                                 local animName = string.lower(anim.Name)
                                 if string.find(animName, "reload") then
-                                    anim.AnimationId = "" -- Disable animation
+                                    pcall(function()
+                                        anim.AnimationId = ""
+                                        anim:Destroy()
+                                    end)
+                                end
+                            end
+                        end
+                        
+                        -- 5. Stop all playing animations with "reload" in name
+                        local humanoid = char:FindFirstChild("Humanoid")
+                        if humanoid then
+                            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                                local animName = string.lower(track.Name)
+                                if string.find(animName, "reload") then
+                                    track:Stop()
+                                    track:Destroy()
+                                end
+                            end
+                        end
+                        
+                        -- 6. Set animation speed to maximum
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = string.lower(obj.Name)
+                                if string.find(name, "animspeed") or string.find(name, "animationspeed") then
+                                    obj.Value = 999 -- Super fast animation
                                 end
                             end
                         end
