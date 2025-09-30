@@ -475,16 +475,131 @@ local function createToggle(parent, text, color, callback)
     return btn, function() return enabled end
 end
 
+-- Helper function to create slider
+local function createSlider(parent, text, min, max, default, callback)
+    local value = default
+    
+    -- Container
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -20, 0, 70)
+    container.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    container.BorderSizePixel = 0
+    container.Parent = parent
+    
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 8)
+    containerCorner.Parent = container
+    
+    -- Label
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 0, 25)
+    label.Position = UDim2.new(0, 10, 0, 5)
+    label.BackgroundTransparency = 1
+    label.Text = text .. ": " .. default
+    label.TextColor3 = Color3.fromRGB(200, 200, 220)
+    label.TextSize = 14
+    label.Font = Enum.Font.GothamSemibold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    -- Slider Background
+    local sliderBG = Instance.new("Frame")
+    sliderBG.Size = UDim2.new(1, -20, 0, 8)
+    sliderBG.Position = UDim2.new(0, 10, 0, 35)
+    sliderBG.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    sliderBG.BorderSizePixel = 0
+    sliderBG.Parent = container
+    
+    local sliderBGCorner = Instance.new("UICorner")
+    sliderBGCorner.CornerRadius = UDim.new(0, 4)
+    sliderBGCorner.Parent = sliderBG
+    
+    -- Slider Fill
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBG
+    
+    local sliderFillCorner = Instance.new("UICorner")
+    sliderFillCorner.CornerRadius = UDim.new(0, 4)
+    sliderFillCorner.Parent = sliderFill
+    
+    -- Min/Max Labels
+    local minLabel = Instance.new("TextLabel")
+    minLabel.Size = UDim2.new(0, 40, 0, 15)
+    minLabel.Position = UDim2.new(0, 10, 0, 50)
+    minLabel.BackgroundTransparency = 1
+    minLabel.Text = tostring(min)
+    minLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
+    minLabel.TextSize = 11
+    minLabel.Font = Enum.Font.Gotham
+    minLabel.TextXAlignment = Enum.TextXAlignment.Left
+    minLabel.Parent = container
+    
+    local maxLabel = Instance.new("TextLabel")
+    maxLabel.Size = UDim2.new(0, 40, 0, 15)
+    maxLabel.Position = UDim2.new(1, -50, 0, 50)
+    maxLabel.BackgroundTransparency = 1
+    maxLabel.Text = tostring(max)
+    maxLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
+    maxLabel.TextSize = 11
+    maxLabel.Font = Enum.Font.Gotham
+    maxLabel.TextXAlignment = Enum.TextXAlignment.Right
+    maxLabel.Parent = container
+    
+    -- Slider interaction
+    local dragging = false
+    
+    sliderBG.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    
+    sliderBG.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = input.Position.X
+            local sliderPos = sliderBG.AbsolutePosition.X
+            local sliderSize = sliderBG.AbsoluteSize.X
+            local relativePos = math.clamp((mousePos - sliderPos) / sliderSize, 0, 1)
+            
+            sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+            value = math.floor(min + (relativePos * (max - min)))
+            label.Text = text .. ": " .. value
+            
+            if callback then
+                callback(value)
+            end
+        end
+    end)
+    
+    return container, function() return value end, function(newValue)
+        value = math.clamp(newValue, min, max)
+        local relativePos = (value - min) / (max - min)
+        sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+        label.Text = text .. ": " .. value
+    end
+end
+
 -- ===== PLAYER TAB =====
 do
-    -- Speed Hack
+    -- Speed Hack with Slider
     local speedConn
-    createToggle(PlayerTab, "🏃 Speed Hack (100)", Color3.fromRGB(100, 150, 255), function(enabled)
+    local currentSpeed = 100
+    
+    createToggle(PlayerTab, "🏃 Speed Hack", Color3.fromRGB(100, 150, 255), function(enabled)
         if enabled then
             speedConn = RunService.Heartbeat:Connect(function()
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = 100
+                    char.Humanoid.WalkSpeed = currentSpeed
                 end
             end)
             getgenv().AdorHUB.Connections.Speed = speedConn
@@ -495,6 +610,10 @@ do
                 char.Humanoid.WalkSpeed = 16
             end
         end
+    end)
+    
+    createSlider(PlayerTab, "🏃 Speed", 16, 500, 100, function(value)
+        currentSpeed = value
     end)
     
     -- Super Jump
@@ -533,10 +652,11 @@ do
         end
     end)
     
-    -- Fly
+    -- Fly with Slider
     local flying = false
     local flyConn
     local flySpeed = 50
+    
     createToggle(PlayerTab, "✈️ Fly Mode", Color3.fromRGB(100, 200, 255), function(enabled)
         flying = enabled
         
@@ -595,6 +715,10 @@ do
                 if hrp:FindFirstChild("BodyVelocity") then hrp.BodyVelocity:Destroy() end
             end
         end
+    end)
+    
+    createSlider(PlayerTab, "✈️ Fly Speed", 10, 200, 50, function(value)
+        flySpeed = value
     end)
     
     -- Noclip
