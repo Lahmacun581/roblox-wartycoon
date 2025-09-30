@@ -879,29 +879,96 @@ do
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local StarterGui = game:GetService("StarterGui")
     
-    -- Infinite Ammo
-    local ammoConn
+    -- Infinite Ammo (Advanced - Auto-detect all weapons)
+    getgenv().AdorHUB.Enabled.InfAmmo = false
+    
     createToggle(CombatTab, "🔫 Infinite Ammo", Color3.fromRGB(255, 100, 100), function(enabled)
-        if enabled then
-            ammoConn = RunService.Heartbeat:Connect(function()
-                local char = LocalPlayer.Character
-                if char then
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            for _, obj in ipairs(tool:GetDescendants()) do
-                                if (obj:IsA("IntValue") or obj:IsA("NumberValue")) then
-                                    local name = string.lower(obj.Name)
-                                    if string.find(name, "ammo") or string.find(name, "clip") or string.find(name, "mag") then
-                                        obj.Value = 999
+        getgenv().AdorHUB.Enabled.InfAmmo = enabled
+        print("[AdorHUB] Infinite Ammo: " .. tostring(enabled))
+    end)
+    
+    -- Ammo keywords (comprehensive)
+    local ammoKeywords = {
+        "ammo", "clip", "mag", "magazine", "bullet", "round",
+        "currentammo", "clipsize", "magsize", "capacity",
+        "reserve", "stock", "loaded", "chamber"
+    }
+    
+    -- Infinite Ammo Loop
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AdorHUB.Enabled.InfAmmo then
+            local char = LocalPlayer.Character
+            if char then
+                -- Check equipped tool
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        -- Search all descendants for ammo values
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                local name = string.lower(obj.Name)
+                                
+                                -- Check all ammo keywords
+                                for _, keyword in ipairs(ammoKeywords) do
+                                    if string.find(name, keyword) then
+                                        -- Set to max (999 or MaxAmmo value)
+                                        local maxAmmo = 999
+                                        
+                                        -- Try to find MaxAmmo value
+                                        local maxObj = tool:FindFirstChild("MaxAmmo") or 
+                                                      tool:FindFirstChild("MaxClip") or 
+                                                      tool:FindFirstChild("ClipSize")
+                                        if maxObj and (maxObj:IsA("IntValue") or maxObj:IsA("NumberValue")) then
+                                            maxAmmo = maxObj.Value
+                                        end
+                                        
+                                        obj.Value = maxAmmo
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- Check config folders
+                        local configFolders = {"Configuration", "Config", "Settings", "Stats", "GunStats", "Ammo"}
+                        for _, folderName in ipairs(configFolders) do
+                            local folder = tool:FindFirstChild(folderName)
+                            if folder then
+                                for _, obj in ipairs(folder:GetChildren()) do
+                                    if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                        local name = string.lower(obj.Name)
+                                        for _, keyword in ipairs(ammoKeywords) do
+                                            if string.find(name, keyword) then
+                                                obj.Value = 999
+                                                break
+                                            end
+                                        end
                                     end
                                 end
                             end
                         end
                     end
                 end
-            end)
-        else
-            if ammoConn then ammoConn:Disconnect() end
+                
+                -- Also check backpack for all weapons
+                local backpack = LocalPlayer:FindFirstChild("Backpack")
+                if backpack then
+                    for _, tool in ipairs(backpack:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            for _, obj in ipairs(tool:GetDescendants()) do
+                                if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                    local name = string.lower(obj.Name)
+                                    for _, keyword in ipairs(ammoKeywords) do
+                                        if string.find(name, keyword) then
+                                            obj.Value = 999
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end
     end)
     
