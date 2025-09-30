@@ -370,6 +370,48 @@ do
         end
     end)
     
+    -- Infinite Cash
+    getgenv().MilitaryTycoon.Enabled.InfCash = false
+    createToggle(TycoonTab, "💎 Infinite Cash", function(enabled)
+        getgenv().MilitaryTycoon.Enabled.InfCash = enabled
+    end)
+    
+    local cashFrameCount2 = 0
+    RunService.Heartbeat:Connect(function()
+        if getgenv().MilitaryTycoon.Enabled.InfCash then
+            cashFrameCount2 = cashFrameCount2 + 1
+            if cashFrameCount2 % 30 ~= 0 then return end
+            
+            -- PlayerGui'deki cash değerini bul ve değiştir
+            pcall(function()
+                for _, gui in pairs(PlayerGui:GetDescendants()) do
+                    if gui:IsA("IntValue") or gui:IsA("NumberValue") then
+                        local name = string.lower(gui.Name)
+                        if string.find(name, "cash") or 
+                           string.find(name, "money") or 
+                           string.find(name, "currency") or
+                           string.find(name, "coins") then
+                            gui.Value = 999999999
+                        end
+                    end
+                end
+                
+                -- LocalPlayer'daki cash değerini bul
+                for _, obj in pairs(LocalPlayer:GetDescendants()) do
+                    if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                        local name = string.lower(obj.Name)
+                        if string.find(name, "cash") or 
+                           string.find(name, "money") or 
+                           string.find(name, "currency") or
+                           string.find(name, "coins") then
+                            obj.Value = 999999999
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+    
     createButton(TycoonTab, "🏭 TP to My Tycoon", Color3.fromRGB(100, 150, 255), function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
@@ -1063,7 +1105,7 @@ do
     local creditsLabel = Instance.new("TextLabel")
     creditsLabel.Size = UDim2.new(1, -10, 0, 60)
     creditsLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    creditsLabel.Text = "⚔️ Military Tycoon v2.0\nMade by Lahmacun581\n20 Features!"
+    creditsLabel.Text = "⚔️ Military Tycoon v2.0\nMade by Lahmacun581\n21 Features!"
     creditsLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
     creditsLabel.TextSize = 13
     creditsLabel.Font = Enum.Font.Gotham
@@ -1074,5 +1116,5 @@ end
 
 print("[Military Tycoon] All features loaded!")
 print("[Military Tycoon] GUI v2.0 Advanced ready!")
-print("[Military Tycoon] Total: 20 features")
-print("[Military Tycoon] Tycoon: 3 | Combat: 6 | Player: 7 | Visuals: 4")
+print("[Military Tycoon] Total: 21 features")
+print("[Military Tycoon] Tycoon: 4 | Combat: 6 | Player: 7 | Visuals: 4")
