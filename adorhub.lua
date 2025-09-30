@@ -940,23 +940,14 @@ do
         print("[AdorHUB] Hitbox Expander: " .. tostring(enabled))
         
         if not enabled then
-            -- Restore normal hitboxes
+            -- Restore normal head size
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
-                    for _, part in pairs(player.Character:GetChildren()) do
-                        if part:IsA("BasePart") then
-                            part.Transparency = part.Name == "HumanoidRootPart" and 1 or 0
-                            part.CanCollide = part.Name ~= "HumanoidRootPart"
-                            
-                            -- Restore original sizes
-                            if part.Name == "HumanoidRootPart" then
-                                part.Size = Vector3.new(2, 2, 1)
-                            elseif part.Name == "Head" then
-                                part.Size = Vector3.new(2, 1, 1)
-                            elseif part.Name == "Torso" or part.Name == "UpperTorso" then
-                                part.Size = Vector3.new(2, 2, 1)
-                            end
-                        end
+                    local head = player.Character:FindFirstChild("Head")
+                    if head then
+                        head.Size = Vector3.new(2, 1, 1)
+                        head.Transparency = 0
+                        head.CanCollide = true
                     end
                 end
             end
@@ -968,28 +959,14 @@ do
         print("[AdorHUB] Hitbox size set to: " .. value)
     end)
     
-    -- Hitbox Loop (Optimized - Only HumanoidRootPart + Head)
-    local hitboxUpdateRate = 0
+    -- Hitbox Loop (Super Optimized - Only Head)
     RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.Hitbox then
-            hitboxUpdateRate = hitboxUpdateRate + 1
-            if hitboxUpdateRate % 3 ~= 0 then return end -- Update every 3 frames (FPS boost)
+            local size = getgenv().AdorHUB.HitboxSize
             
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
-                    local char = player.Character
-                    local size = getgenv().AdorHUB.HitboxSize
-                    
-                    -- Only expand HumanoidRootPart and Head (most important)
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        hrp.Size = Vector3.new(size, size, size)
-                        hrp.Transparency = 0.7
-                        hrp.CanCollide = false
-                        hrp.Massless = true
-                    end
-                    
-                    local head = char:FindFirstChild("Head")
+                    local head = player.Character:FindFirstChild("Head")
                     if head then
                         head.Size = Vector3.new(size, size, size)
                         head.Transparency = 0.7
