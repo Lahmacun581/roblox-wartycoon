@@ -1100,7 +1100,7 @@ do
         end
     end)
     
-    -- Fast Reload (Instant Reload)
+    -- Fast Reload (Instant Reload - Advanced)
     getgenv().AdorHUB.Enabled.FastReload = false
     
     createToggle(CombatTab, "⚡ Fast Reload", Color3.fromRGB(255, 200, 100), function(enabled)
@@ -1108,33 +1108,44 @@ do
         print("[AdorHUB] Fast Reload: " .. tostring(enabled))
     end)
     
-    -- Reload keywords
+    -- Comprehensive reload keywords
     local reloadKeywords = {
-        "reload", "reloading", "reloadtime", "reloadspeed", "reloadduration"
+        "reload", "reloading", "reloadtime", "reloadspeed", "reloadduration",
+        "reloaddelay", "reloadwait", "reloadanimation", "reloadlength"
     }
     
-    -- Fast Reload Loop
+    -- Fast Reload Loop (Aggressive)
     RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.FastReload then
             local char = LocalPlayer.Character
             if char then
                 for _, tool in ipairs(char:GetChildren()) do
                     if tool:IsA("Tool") then
-                        -- Set reload time to 0 or very low
+                        -- 1. Set all reload-related values to 0
                         for _, obj in ipairs(tool:GetDescendants()) do
                             if obj:IsA("NumberValue") or obj:IsA("IntValue") then
                                 local name = string.lower(obj.Name)
+                                
+                                -- Check reload keywords
                                 for _, keyword in ipairs(reloadKeywords) do
                                     if string.find(name, keyword) then
-                                        obj.Value = 0.01 -- Almost instant
+                                        obj.Value = 0
                                         break
                                     end
+                                end
+                                
+                                -- Also check for animation-related
+                                if string.find(name, "anim") and string.find(name, "reload") then
+                                    obj.Value = 0
                                 end
                             end
                         end
                         
-                        -- Check config folders
-                        local configFolders = {"Configuration", "Config", "Settings", "Stats", "GunStats", "WeaponStats"}
+                        -- 2. Check config folders
+                        local configFolders = {
+                            "Configuration", "Config", "Settings", "Stats", 
+                            "GunStats", "WeaponStats", "Reload", "Animations"
+                        }
                         for _, folderName in ipairs(configFolders) do
                             local folder = tool:FindFirstChild(folderName)
                             if folder then
@@ -1143,11 +1154,34 @@ do
                                         local name = string.lower(obj.Name)
                                         for _, keyword in ipairs(reloadKeywords) do
                                             if string.find(name, keyword) then
-                                                obj.Value = 0.01
+                                                obj.Value = 0
                                                 break
                                             end
                                         end
                                     end
+                                end
+                            end
+                        end
+                        
+                        -- 3. Check direct children
+                        for _, obj in ipairs(tool:GetChildren()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = string.lower(obj.Name)
+                                for _, keyword in ipairs(reloadKeywords) do
+                                    if string.find(name, keyword) then
+                                        obj.Value = 0
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- 4. Disable reload animations
+                        for _, anim in ipairs(tool:GetDescendants()) do
+                            if anim:IsA("Animation") then
+                                local animName = string.lower(anim.Name)
+                                if string.find(animName, "reload") then
+                                    anim.AnimationId = "" -- Disable animation
                                 end
                             end
                         end
