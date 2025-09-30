@@ -284,8 +284,15 @@ local function addSpyEntry(obj, method, args)
         item.Text = line
         item.Parent = SpyList
         item.MouseButton1Click:Connect(function()
-            onRemoteSelected(obj)
-            SpySelectedIndex = #SpyEntries
+            if obj and obj:IsA("RemoteEvent") then
+                SelectedRemote = obj
+                CurrentRemoteName = obj.Name
+                NameBox.Text = obj.Name
+                SpySelectedIndex = #SpyEntries
+                pcall(function()
+                    StarterGui:SetCore("SendNotification", {Title = "RH"; Text = "Seçildi: " .. obj.Name; Duration = 2})
+                end)
+            end
         end)
     end
 end
@@ -308,9 +315,17 @@ local function rebuildSpyList()
             item.Text = e.text
             item.Parent = SpyList
             local obj = e.object
+            local idx = _
             item.MouseButton1Click:Connect(function()
-                onRemoteSelected(obj)
-                SpySelectedIndex = _
+                if obj and obj:IsA("RemoteEvent") then
+                    SelectedRemote = obj
+                    CurrentRemoteName = obj.Name
+                    NameBox.Text = obj.Name
+                    SpySelectedIndex = idx
+                    pcall(function()
+                        StarterGui:SetCore("SendNotification", {Title = "RH"; Text = "Seçildi: " .. obj.Name; Duration = 2})
+                    end)
+                end
             end)
         end
     end
@@ -608,7 +623,14 @@ local function populateList()
         item.ZIndex = 52
         item.Parent = DDList
         item.MouseButton1Click:Connect(function()
-            onRemoteSelected(ev)
+            if ev and ev:IsA("RemoteEvent") then
+                SelectedRemote = ev
+                CurrentRemoteName = ev.Name
+                NameBox.Text = ev.Name
+                pcall(function()
+                    StarterGui:SetCore("SendNotification", {Title = "RH"; Text = "Seçildi: " .. ev.Name; Duration = 2})
+                end)
+            end
             DD.Visible = false
         end)
     end
@@ -628,7 +650,6 @@ local function refreshRemote()
     SelectedRemote = resolveRemoteEventByName(ReplicatedStorage, CurrentRemoteName)
     local msg = SelectedRemote and ("Event bulundu: " .. SelectedRemote:GetFullName()) or ("Event yok: " .. tostring(CurrentRemoteName))
     pcall(function() StarterGui:SetCore("SendNotification", {Title = "RH"; Text = msg; Duration = 2}) end)
-    if SelectedRemote then onRemoteSelected(SelectedRemote) end
 end
 RefreshBtn.MouseButton1Click:Connect(refreshRemote)
 refreshRemote()
