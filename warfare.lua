@@ -2,18 +2,62 @@
 -- Yerleştirme: Bu kodu bir LocalScript içine koy veya executor ile çalıştır.
 -- GUI, PlayerGui içine eklenir.
 
--- Eğer daha önce script çalıştıysa, temizle
+-- Eğer daha önce script çalıştıysa, TAMAMEN temizle
 if getgenv().WarTycoonGUI then
+    -- ScreenGui temizle
     if getgenv().WarTycoonGUI.ScreenGui then
-        getgenv().WarTycoonGUI.ScreenGui:Destroy()
+        pcall(function()
+            getgenv().WarTycoonGUI.ScreenGui:Destroy()
+        end)
     end
+    
+    -- FOV Circle temizle
     if getgenv().WarTycoonGUI.FOVCircle then
-        getgenv().WarTycoonGUI.FOVCircle:Remove()
+        pcall(function()
+            getgenv().WarTycoonGUI.FOVCircle:Remove()
+        end)
     end
+    
+    -- Tüm ESP'leri temizle
+    if getgenv().WarTycoonGUI.ESPObjects then
+        for player, data in pairs(getgenv().WarTycoonGUI.ESPObjects) do
+            pcall(function()
+                if data.billboard then
+                    data.billboard:Destroy()
+                end
+            end)
+        end
+        getgenv().WarTycoonGUI.ESPObjects = {}
+    end
+    
+    -- Tüm connection'ları temizle
+    if getgenv().WarTycoonGUI.Connections then
+        for _, conn in pairs(getgenv().WarTycoonGUI.Connections) do
+            pcall(function()
+                conn:Disconnect()
+            end)
+        end
+        getgenv().WarTycoonGUI.Connections = {}
+    end
+    
+    print("[CLEANUP] Eski GUI tamamen temizlendi")
 end
 
--- Yeni GUI ve FOV Circle için tablo
-getgenv().WarTycoonGUI = getgenv().WarTycoonGUI or {}
+-- Yeni GUI ve FOV Circle için tablo (sıfırdan)
+getgenv().WarTycoonGUI = {
+    ScreenGui = nil,
+    FOVCircle = nil,
+    ESPObjects = {},
+    Connections = {},
+    Enabled = {
+        ESP = false,
+        SilentAim = false,
+        InfAmmo = false,
+        NoRecoil = false,
+        NoSpread = false,
+        FireRate = false
+    }
+}
 
 -- FOV Circle (gelişmiş)
 local fovCircle = Drawing and Drawing.new and Drawing.new("Circle") or nil
@@ -529,42 +573,82 @@ local PlayerContent = PlayerTab
     ESPCorner.CornerRadius = UDim.new(0, 6)
     ESPCorner.Parent = ESPToggle
     
-    -- ESP Functions
+    -- ESP Functions (Düzeltilmiş)
     local function createESP(player)
-        if not player.Character or ESPObjects[player] or player == LocalPlayer then return end
-        local char = player.Character
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
+        if not player or player == LocalPlayer then return end
+        if ESPObjects[player] then return end -- Zaten var
         
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ESP_" .. player.Name
-        billboard.Adornee = hrp
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.StudsOffset = Vector3.new(0, 3, 0)
-        billboard.AlwaysOnTop = true
-        billboard.Parent = hrp
+        local function setupESP()
+            local char = player.Character
+            if not char then return end
+            
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            -- Eski ESP varsa temizle
+            if ESPObjects[player] then
+                pcall(function()
+                    ESPObjects[player].billboard:Destroy()
+                end)
+            end
+            
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "ESP_" .. player.Name
+            billboard.Adornee = hrp
+            billboard.Size = UDim2.new(0, 200, 0, 60)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+            billboard.Parent = hrp
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 0.4, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = player.Name
+            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+            nameLabel.TextStrokeTransparency = 0.5
+            nameLabel.Font = Enum.Font.SourceSansBold
+            nameLabel.TextSize = 16
+            nameLabel.Parent = billboard
+            
+            local distLabel = Instance.new("TextLabel")
+            distLabel.Size = UDim2.new(1, 0, 0.3, 0)
+            distLabel.Position = UDim2.new(0, 0, 0.4, 0)
+            distLabel.BackgroundTransparency = 1
+            distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+            distLabel.TextStrokeTransparency = 0.5
+            distLabel.Font = Enum.Font.SourceSans
+            distLabel.TextSize = 14
+            distLabel.Parent = billboard
+            
+            local healthLabel = Instance.new("TextLabel")
+            healthLabel.Size = UDim2.new(1, 0, 0.3, 0)
+            healthLabel.Position = UDim2.new(0, 0, 0.7, 0)
+            healthLabel.BackgroundTransparency = 1
+            healthLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            healthLabel.TextStrokeTransparency = 0.5
+            healthLabel.Font = Enum.Font.SourceSans
+            healthLabel.TextSize = 14
+            healthLabel.Parent = billboard
+            
+            ESPObjects[player] = {
+                billboard = billboard,
+                distLabel = distLabel,
+                healthLabel = healthLabel,
+                character = char
+            }
+            
+            getgenv().WarTycoonGUI.ESPObjects[player] = ESPObjects[player]
+        end
         
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = player.Name
-        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
-        nameLabel.TextStrokeTransparency = 0.5
-        nameLabel.Font = Enum.Font.SourceSansBold
-        nameLabel.TextSize = 16
-        nameLabel.Parent = billboard
+        setupESP()
         
-        local distLabel = Instance.new("TextLabel")
-        distLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        distLabel.Position = UDim2.new(0, 0, 0.5, 0)
-        distLabel.BackgroundTransparency = 1
-        distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        distLabel.TextStrokeTransparency = 0.5
-        distLabel.Font = Enum.Font.SourceSans
-        distLabel.TextSize = 14
-        distLabel.Parent = billboard
-        
-        ESPObjects[player] = {billboard = billboard, distLabel = distLabel}
+        -- Character respawn'da yeniden oluştur
+        player.CharacterAdded:Connect(function()
+            if ESPEnabled then
+                task.wait(0.5)
+                setupESP()
+            end
+        end)
     end
     
     local function removeESP(player)
