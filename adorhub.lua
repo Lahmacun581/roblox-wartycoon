@@ -1192,13 +1192,19 @@ do
                         -- 5. Stop all playing animations with "reload" in name
                         local humanoid = char:FindFirstChild("Humanoid")
                         if humanoid then
-                            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
-                                local animName = string.lower(track.Name)
-                                if string.find(animName, "reload") then
-                                    track:Stop()
-                                    track:Destroy()
+                            pcall(function()
+                                for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                                    pcall(function()
+                                        local animName = track.Name and string.lower(track.Name) or ""
+                                        local animId = track.Animation and track.Animation.AnimationId or ""
+                                        animId = string.lower(animId)
+                                        
+                                        if string.find(animName, "reload") or string.find(animId, "reload") then
+                                            track:Stop()
+                                        end
+                                    end)
                                 end
-                            end
+                            end)
                         end
                         
                         -- 6. Set animation speed to maximum
