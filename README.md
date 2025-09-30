@@ -2,6 +2,19 @@
 
 Modern ve gelişmiş Roblox oyun scriptleri koleksiyonu. ESP, Teleport, Auto-Farm ve daha fazlası!
 
+## 📜 Quick Load Scripts
+
+```lua
+-- AdorHUB v2.0 (Universal)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/adorhub.lua"))()
+
+-- Türk Sohbet Oyunu
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/turksohbet.lua"))()
+
+-- Military Tycoon (Coming Soon)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/militarytycoon.lua"))()
+```
+
 ## 📁 İçerik
 
 ### 🔫 War Tycoon GUI (`warfare.lua`)
