@@ -1466,25 +1466,30 @@ do
         end
     end)
     
-    -- ESP Options
-    createToggle(VisualsTab, "📦 ESP Box", Color3.fromRGB(150, 200, 255), function(enabled)
+    -- ESP Options (All visible by default)
+    local espBoxBtn = createToggle(VisualsTab, "📦 ESP Box", Color3.fromRGB(150, 200, 255), function(enabled)
         ESPBoxEnabled = enabled
+        print("[AdorHUB] ESP Box: " .. tostring(enabled))
     end)
     
-    createToggle(VisualsTab, "📝 ESP Name", Color3.fromRGB(255, 200, 150), function(enabled)
+    local espNameBtn = createToggle(VisualsTab, "📝 ESP Name", Color3.fromRGB(255, 200, 150), function(enabled)
         ESPNameEnabled = enabled
+        print("[AdorHUB] ESP Name: " .. tostring(enabled))
     end)
     
-    createToggle(VisualsTab, "❤️ ESP Health", Color3.fromRGB(255, 150, 150), function(enabled)
+    local espHealthBtn = createToggle(VisualsTab, "❤️ ESP Health", Color3.fromRGB(255, 150, 150), function(enabled)
         ESPHealthEnabled = enabled
+        print("[AdorHUB] ESP Health: " .. tostring(enabled))
     end)
     
-    createToggle(VisualsTab, "📏 ESP Distance", Color3.fromRGB(200, 200, 255), function(enabled)
+    local espDistBtn = createToggle(VisualsTab, "📏 ESP Distance", Color3.fromRGB(200, 200, 255), function(enabled)
         ESPDistanceEnabled = enabled
+        print("[AdorHUB] ESP Distance: " .. tostring(enabled))
     end)
     
-    createToggle(VisualsTab, "📍 ESP Tracer", Color3.fromRGB(255, 255, 150), function(enabled)
+    local espTracerBtn = createToggle(VisualsTab, "📍 ESP Tracer", Color3.fromRGB(255, 255, 150), function(enabled)
         ESPTracerEnabled = enabled
+        print("[AdorHUB] ESP Tracer: " .. tostring(enabled))
     end)
     
     -- Chams (Wallhack)
