@@ -494,6 +494,78 @@ do
             end
         end
     end)
+    
+    -- Rapid Fire
+    getgenv().MilitaryTycoon.Enabled.RapidFire = false
+    createToggle(CombatTab, "🔥 Rapid Fire", function(enabled)
+        getgenv().MilitaryTycoon.Enabled.RapidFire = enabled
+    end)
+    
+    RunService.Heartbeat:Connect(function()
+        if getgenv().MilitaryTycoon.Enabled.RapidFire then
+            local char = LocalPlayer.Character
+            if char then
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = string.lower(obj.Name)
+                                if string.find(name, "firerate") or 
+                                   string.find(name, "fire") or 
+                                   string.find(name, "cooldown") or
+                                   string.find(name, "delay") then
+                                    obj.Value = 0
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- Hitbox Expander
+    getgenv().MilitaryTycoon.Enabled.Hitbox = false
+    getgenv().MilitaryTycoon.HitboxSize = 20
+    
+    createToggle(CombatTab, "📦 Hitbox Expander", function(enabled)
+        getgenv().MilitaryTycoon.Enabled.Hitbox = enabled
+        
+        if not enabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local head = player.Character:FindFirstChild("Head")
+                    if head then
+                        head.Size = Vector3.new(2, 1, 1)
+                        head.Transparency = 0
+                        head.CanCollide = true
+                    end
+                end
+            end
+        end
+    end)
+    
+    local hitboxFrameCount = 0
+    RunService.Heartbeat:Connect(function()
+        if getgenv().MilitaryTycoon.Enabled.Hitbox then
+            hitboxFrameCount = hitboxFrameCount + 1
+            if hitboxFrameCount % 5 ~= 0 then return end
+            
+            local size = getgenv().MilitaryTycoon.HitboxSize
+            
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local head = player.Character:FindFirstChild("Head")
+                    if head then
+                        head.Size = Vector3.new(size, size, size)
+                        head.Transparency = 0.7
+                        head.CanCollide = false
+                        head.Massless = true
+                    end
+                end
+            end
+        end
+    end)
 end
 
 -- ===== PLAYER TAB =====
@@ -665,8 +737,13 @@ end
 
 -- ===== VISUALS TAB =====
 do
-    -- ESP System
+    -- ESP System (Advanced)
     local ESPEnabled = false
+    local ESPBoxEnabled = true
+    local ESPNameEnabled = true
+    local ESPHealthEnabled = true
+    local ESPDistanceEnabled = true
+    local ESPTracerEnabled = false
     local ESPObjects = {}
     
     createToggle(VisualsTab, "👁️ ESP Master", function(enabled)
@@ -675,23 +752,49 @@ do
         if not enabled then
             for player, data in pairs(ESPObjects) do
                 if data.billboard then data.billboard:Destroy() end
+                if data.box then data.box:Remove() end
+                if data.boxOutline then data.boxOutline:Remove() end
+                if data.tracer then data.tracer:Remove() end
             end
             ESPObjects = {}
         end
+    end)
+    
+    createToggle(VisualsTab, "📦 ESP Box", function(enabled)
+        ESPBoxEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📝 ESP Name", function(enabled)
+        ESPNameEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "❤️ ESP Health", function(enabled)
+        ESPHealthEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📏 ESP Distance", function(enabled)
+        ESPDistanceEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📍 ESP Tracer", function(enabled)
+        ESPTracerEnabled = enabled
     end)
     
     local function createESP(player)
         if player == LocalPlayer then return end
         if ESPObjects[player] then return end
         
+        local espData = {}
+        
+        -- Billboard (Name, Health, Distance)
         local billboard = Instance.new("BillboardGui")
         billboard.Name = "ESP"
         billboard.AlwaysOnTop = true
-        billboard.Size = UDim2.new(0, 100, 0, 50)
+        billboard.Size = UDim2.new(0, 100, 0, 80)
         billboard.StudsOffset = Vector3.new(0, 3, 0)
         
         local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        nameLabel.Size = UDim2.new(1, 0, 0.33, 0)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = player.Name
         nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -700,9 +803,20 @@ do
         nameLabel.TextStrokeTransparency = 0
         nameLabel.Parent = billboard
         
+        local healthLabel = Instance.new("TextLabel")
+        healthLabel.Size = UDim2.new(1, 0, 0.33, 0)
+        healthLabel.Position = UDim2.new(0, 0, 0.33, 0)
+        healthLabel.BackgroundTransparency = 1
+        healthLabel.Text = "100 HP"
+        healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        healthLabel.TextSize = 12
+        healthLabel.Font = Enum.Font.Gotham
+        healthLabel.TextStrokeTransparency = 0
+        healthLabel.Parent = billboard
+        
         local distLabel = Instance.new("TextLabel")
-        distLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        distLabel.Position = UDim2.new(0, 0, 0.5, 0)
+        distLabel.Size = UDim2.new(1, 0, 0.33, 0)
+        distLabel.Position = UDim2.new(0, 0, 0.66, 0)
         distLabel.BackgroundTransparency = 1
         distLabel.Text = "0 studs"
         distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -711,11 +825,32 @@ do
         distLabel.TextStrokeTransparency = 0
         distLabel.Parent = billboard
         
-        ESPObjects[player] = {
-            billboard = billboard,
-            nameLabel = nameLabel,
-            distLabel = distLabel
-        }
+        -- Box ESP (Drawing)
+        if Drawing then
+            espData.boxOutline = Drawing.new("Square")
+            espData.boxOutline.Visible = false
+            espData.boxOutline.Color = Color3.new(0, 0, 0)
+            espData.boxOutline.Thickness = 3
+            espData.boxOutline.Filled = false
+            
+            espData.box = Drawing.new("Square")
+            espData.box.Visible = false
+            espData.box.Color = Color3.new(1, 1, 1)
+            espData.box.Thickness = 1
+            espData.box.Filled = false
+            
+            espData.tracer = Drawing.new("Line")
+            espData.tracer.Visible = false
+            espData.tracer.Color = Color3.new(1, 1, 1)
+            espData.tracer.Thickness = 1
+        end
+        
+        espData.billboard = billboard
+        espData.nameLabel = nameLabel
+        espData.healthLabel = healthLabel
+        espData.distLabel = distLabel
+        
+        ESPObjects[player] = espData
         
         local function updateESP()
             if not ESPEnabled then return end
@@ -723,14 +858,92 @@ do
             local char = player.Character
             local myChar = LocalPlayer.Character
             
-            if char and char:FindFirstChild("HumanoidRootPart") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                billboard.Adornee = char.HumanoidRootPart
-                billboard.Parent = char.HumanoidRootPart
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local hrp = char.HumanoidRootPart
+                local hum = char.Humanoid
                 
-                local dist = (char.HumanoidRootPart.Position - myChar.HumanoidRootPart.Position).Magnitude
-                distLabel.Text = math.floor(dist) .. " studs"
+                -- Billboard
+                billboard.Adornee = hrp
+                billboard.Parent = hrp
+                
+                -- Distance
+                local dist = (hrp.Position - myChar.HumanoidRootPart.Position).Magnitude
+                if ESPDistanceEnabled then
+                    distLabel.Text = math.floor(dist) .. " studs"
+                    distLabel.Visible = true
+                else
+                    distLabel.Visible = false
+                end
+                
+                -- Name
+                nameLabel.Visible = ESPNameEnabled
+                
+                -- Health
+                if ESPHealthEnabled then
+                    local health = math.floor(hum.Health)
+                    local maxHealth = math.floor(hum.MaxHealth)
+                    healthLabel.Text = health .. " HP"
+                    
+                    -- Color based on health
+                    local healthPercent = health / maxHealth
+                    if healthPercent > 0.5 then
+                        healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                    elseif healthPercent > 0.25 then
+                        healthLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+                    else
+                        healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+                    end
+                    healthLabel.Visible = true
+                else
+                    healthLabel.Visible = false
+                end
+                
+                -- Box & Tracer
+                if Drawing then
+                    local camera = workspace.CurrentCamera
+                    local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                    
+                    if onScreen then
+                        local headPos = camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 3, 0))
+                        local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                        
+                        local height = math.abs(headPos.Y - legPos.Y)
+                        local width = height / 2
+                        
+                        -- Box
+                        if ESPBoxEnabled and espData.box then
+                            espData.box.Size = Vector2.new(width, height)
+                            espData.box.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
+                            espData.box.Visible = true
+                            
+                            espData.boxOutline.Size = Vector2.new(width, height)
+                            espData.boxOutline.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
+                            espData.boxOutline.Visible = true
+                        else
+                            if espData.box then espData.box.Visible = false end
+                            if espData.boxOutline then espData.boxOutline.Visible = false end
+                        end
+                        
+                        -- Tracer
+                        if ESPTracerEnabled and espData.tracer then
+                            local screenSize = camera.ViewportSize
+                            espData.tracer.From = Vector2.new(screenSize.X / 2, screenSize.Y)
+                            espData.tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                            espData.tracer.Visible = true
+                        else
+                            if espData.tracer then espData.tracer.Visible = false end
+                        end
+                    else
+                        if espData.box then espData.box.Visible = false end
+                        if espData.boxOutline then espData.boxOutline.Visible = false end
+                        if espData.tracer then espData.tracer.Visible = false end
+                    end
+                end
             else
                 billboard.Parent = nil
+                if espData.box then espData.box.Visible = false end
+                if espData.boxOutline then espData.boxOutline.Visible = false end
+                if espData.tracer then espData.tracer.Visible = false end
             end
         end
         
@@ -761,11 +974,96 @@ do
         end
     end)
     
+    -- Player List
+    local playerListFrame = Instance.new("Frame")
+    playerListFrame.Size = UDim2.new(1, -10, 0, 200)
+    playerListFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    playerListFrame.Parent = VisualsTab
+    
+    Instance.new("UICorner", playerListFrame).CornerRadius = UDim.new(0, 8)
+    
+    local playerListTitle = Instance.new("TextLabel")
+    playerListTitle.Size = UDim2.new(1, 0, 0, 30)
+    playerListTitle.BackgroundTransparency = 1
+    playerListTitle.Text = "👥 Player List"
+    playerListTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    playerListTitle.TextSize = 14
+    playerListTitle.Font = Enum.Font.GothamBold
+    playerListTitle.Parent = playerListFrame
+    
+    local playerListScroll = Instance.new("ScrollingFrame")
+    playerListScroll.Size = UDim2.new(1, -10, 1, -40)
+    playerListScroll.Position = UDim2.new(0, 5, 0, 35)
+    playerListScroll.BackgroundTransparency = 1
+    playerListScroll.BorderSizePixel = 0
+    playerListScroll.ScrollBarThickness = 4
+    playerListScroll.ScrollBarImageColor3 = Color3.fromRGB(50, 150, 50)
+    playerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    playerListScroll.Parent = playerListFrame
+    
+    local playerListLayout = Instance.new("UIListLayout")
+    playerListLayout.Padding = UDim.new(0, 3)
+    playerListLayout.Parent = playerListScroll
+    
+    playerListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        playerListScroll.CanvasSize = UDim2.new(0, 0, 0, playerListLayout.AbsoluteContentSize.Y + 5)
+    end)
+    
+    local function updatePlayerList()
+        for _, child in ipairs(playerListScroll:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local playerBtn = Instance.new("TextButton")
+                playerBtn.Size = UDim2.new(1, -5, 0, 25)
+                playerBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+                playerBtn.Text = player.Name
+                playerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                playerBtn.TextSize = 12
+                playerBtn.Font = Enum.Font.Gotham
+                playerBtn.Parent = playerListScroll
+                
+                Instance.new("UICorner", playerBtn).CornerRadius = UDim.new(0, 5)
+                
+                playerBtn.MouseButton1Click:Connect(function()
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        char.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                    end
+                end)
+                
+                playerBtn.MouseEnter:Connect(function()
+                    TweenService:Create(playerBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 150, 50)}):Play()
+                end)
+                
+                playerBtn.MouseLeave:Connect(function()
+                    TweenService:Create(playerBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 45)}):Play()
+                end)
+            end
+        end
+    end
+    
+    updatePlayerList()
+    
+    Players.PlayerAdded:Connect(function()
+        task.wait(0.5)
+        updatePlayerList()
+    end)
+    
+    Players.PlayerRemoving:Connect(function()
+        task.wait(0.5)
+        updatePlayerList()
+    end)
+    
     -- Credits
     local creditsLabel = Instance.new("TextLabel")
     creditsLabel.Size = UDim2.new(1, -10, 0, 60)
     creditsLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    creditsLabel.Text = "⚔️ Military Tycoon v2.0\nMade by Lahmacun581\nFull Featured"
+    creditsLabel.Text = "⚔️ Military Tycoon v2.0\nMade by Lahmacun581\n20 Features!"
     creditsLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
     creditsLabel.TextSize = 13
     creditsLabel.Font = Enum.Font.Gotham
@@ -775,5 +1073,6 @@ do
 end
 
 print("[Military Tycoon] All features loaded!")
-print("[Military Tycoon] GUI v2.0 ready!")
-print("[Military Tycoon] Total: 15 features")
+print("[Military Tycoon] GUI v2.0 Advanced ready!")
+print("[Military Tycoon] Total: 20 features")
+print("[Military Tycoon] Tycoon: 3 | Combat: 6 | Player: 7 | Visuals: 4")
