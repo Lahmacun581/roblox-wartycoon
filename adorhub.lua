@@ -1,6 +1,6 @@
 --[[
     ╔═══════════════════════════════════════════════════════════╗
-    ║                      AdorHUB v1.0                         ║
+    ║                      AdorHUB v2.0                         ║
     ║              Universal Roblox Script Hub                  ║
     ║                  by Lahmacun581                           ║
     ╚═══════════════════════════════════════════════════════════╝
@@ -23,7 +23,7 @@ end
 
 -- Global state
 getgenv().AdorHUB = {
-    Version = "1.0",
+    Version = "2.0",
     ScreenGui = nil,
     Connections = {},
     Enabled = {}
@@ -1550,7 +1550,7 @@ do
     local creditsLabel = Instance.new("TextLabel")
     creditsLabel.Size = UDim2.new(1, -20, 0, 80)
     creditsLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    creditsLabel.Text = "AdorHUB v1.0\n\nCreated by Lahmacun581\nUniversal Script Hub"
+    creditsLabel.Text = "AdorHUB v2.0\n\nCreated by Lahmacun581\nUniversal Script Hub"
     creditsLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
     creditsLabel.TextSize = 14
     creditsLabel.Font = Enum.Font.Gotham
