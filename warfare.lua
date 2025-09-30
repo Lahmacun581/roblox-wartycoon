@@ -735,6 +735,12 @@ local PlayerContent = PlayerTab
     InfAmmoCorner.Parent = InfAmmoBtn
     
     local ammoConnection
+    local ammoKeywords = {
+        "ammo", "clip", "mag", "magazine", "bullet", "round", 
+        "currentammo", "clipsize", "magsize", "capacity",
+        "reserve", "stock", "loaded"
+    }
+    
     InfAmmoBtn.MouseButton1Click:Connect(function()
         InfAmmoEnabled = not InfAmmoEnabled
         InfAmmoBtn.Text = "🔫 Infinite Ammo: " .. (InfAmmoEnabled and "ON" or "OFF")
@@ -743,15 +749,94 @@ local PlayerContent = PlayerTab
         if InfAmmoEnabled then
             ammoConnection = RunService.Heartbeat:Connect(function()
                 local char = LocalPlayer.Character
-                if char then
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            -- Ammo değerlerini bul ve maksimuma çıkar
-                            for _, obj in ipairs(tool:GetDescendants()) do
-                                if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-                                    local name = string.lower(obj.Name)
-                                    if string.find(name, "ammo") or string.find(name, "clip") or string.find(name, "mag") then
-                                        obj.Value = 999
+                if not char then return end
+                
+                -- Tüm silahları tara
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        -- 1. Tüm descendants'leri tara
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                local name = string.lower(obj.Name)
+                                
+                                -- Ammo anahtar kelimelerini kontrol et
+                                for _, keyword in ipairs(ammoKeywords) do
+                                    if string.find(name, keyword) then
+                                        -- MaxAmmo değerini bul
+                                        local maxAmmo = 999
+                                        local maxObj = tool:FindFirstChild("MaxAmmo") or tool:FindFirstChild("MaxClip") or tool:FindFirstChild("ClipSize")
+                                        if maxObj and (maxObj:IsA("IntValue") or maxObj:IsA("NumberValue")) then
+                                            maxAmmo = maxObj.Value
+                                        end
+                                        
+                                        -- Değeri maksimuma çıkar
+                                        if obj.Value < maxAmmo then
+                                            obj.Value = maxAmmo
+                                        end
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- 2. Özel klasorleri kontrol et
+                        local folders = {
+                            "Configuration", "Config", "Settings", "Stats",
+                            "GunStats", "WeaponStats", "Ammo", "Magazine"
+                        }
+                        
+                        for _, folderName in ipairs(folders) do
+                            local folder = tool:FindFirstChild(folderName)
+                            if folder then
+                                for _, obj in ipairs(folder:GetChildren()) do
+                                    if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                        local name = string.lower(obj.Name)
+                                        for _, keyword in ipairs(ammoKeywords) do
+                                            if string.find(name, keyword) then
+                                                obj.Value = 999
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- 3. ModuleScript'lerdeki ammo değerlerini değiştir
+                        for _, module in ipairs(tool:GetDescendants()) do
+                            if module:IsA("ModuleScript") then
+                                pcall(function()
+                                    local data = require(module)
+                                    if type(data) == "table" then
+                                        for key, value in pairs(data) do
+                                            local keyLower = string.lower(tostring(key))
+                                            for _, keyword in ipairs(ammoKeywords) do
+                                                if string.find(keyLower, keyword) and type(value) == "number" then
+                                                    data[key] = 999
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                end)
+                            end
+                        end
+                        
+                        -- 4. Backpack'teki silahları da kontrol et
+                        local backpack = LocalPlayer:FindFirstChild("Backpack")
+                        if backpack then
+                            for _, backpackTool in ipairs(backpack:GetChildren()) do
+                                if backpackTool:IsA("Tool") then
+                                    for _, obj in ipairs(backpackTool:GetDescendants()) do
+                                        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                            local name = string.lower(obj.Name)
+                                            for _, keyword in ipairs(ammoKeywords) do
+                                                if string.find(name, keyword) then
+                                                    obj.Value = 999
+                                                    break
+                                                end
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -759,11 +844,17 @@ local PlayerContent = PlayerTab
                     end
                 end
             end)
+            
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Infinite Ammo aktif! Mermi asla bitmez."; Duration = 2})
+            end)
+            print("[INFINITE AMMO] Enabled - Monitoring all ammo values")
         else
             if ammoConnection then
                 ammoConnection:Disconnect()
                 ammoConnection = nil
             end
+            print("[INFINITE AMMO] Disabled")
         end
     end)
     
