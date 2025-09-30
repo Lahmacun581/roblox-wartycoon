@@ -968,41 +968,33 @@ do
         print("[AdorHUB] Hitbox size set to: " .. value)
     end)
     
-    -- Hitbox Loop
+    -- Hitbox Loop (Optimized - Only HumanoidRootPart + Head)
+    local hitboxUpdateRate = 0
     RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.Hitbox then
+            hitboxUpdateRate = hitboxUpdateRate + 1
+            if hitboxUpdateRate % 3 ~= 0 then return end -- Update every 3 frames (FPS boost)
+            
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
                     local char = player.Character
+                    local size = getgenv().AdorHUB.HitboxSize
                     
-                    -- Expand all body parts
-                    for _, part in pairs(char:GetChildren()) do
-                        if part:IsA("BasePart") then
-                            local size = getgenv().AdorHUB.HitboxSize
-                            
-                            -- Make hitbox huge and transparent
-                            part.Size = Vector3.new(size, size, size)
-                            part.Transparency = 0.7
-                            part.CanCollide = false
-                            part.Massless = true
-                            
-                            -- Keep original material for hit detection
-                            if not part:FindFirstChild("OriginalMaterial") then
-                                local mat = Instance.new("StringValue")
-                                mat.Name = "OriginalMaterial"
-                                mat.Value = tostring(part.Material)
-                                mat.Parent = part
-                            end
-                        end
-                    end
-                    
-                    -- Make sure HumanoidRootPart is the main hitbox
+                    -- Only expand HumanoidRootPart and Head (most important)
                     local hrp = char:FindFirstChild("HumanoidRootPart")
                     if hrp then
-                        hrp.Size = Vector3.new(getgenv().AdorHUB.HitboxSize, getgenv().AdorHUB.HitboxSize, getgenv().AdorHUB.HitboxSize)
-                        hrp.Transparency = 0.5
+                        hrp.Size = Vector3.new(size, size, size)
+                        hrp.Transparency = 0.7
                         hrp.CanCollide = false
                         hrp.Massless = true
+                    end
+                    
+                    local head = char:FindFirstChild("Head")
+                    if head then
+                        head.Size = Vector3.new(size, size, size)
+                        head.Transparency = 0.7
+                        head.CanCollide = false
+                        head.Massless = true
                     end
                 end
             end
@@ -1271,15 +1263,19 @@ do
         ESPEnabled = enabled
         
         if enabled then
-            -- Create ESP for all players
+            -- Create ESP for all existing players
             for _, player in ipairs(Players:GetPlayers()) do
-                createESP(player)
+                if player ~= LocalPlayer then
+                    task.spawn(function()
+                        createESP(player)
+                    end)
+                end
             end
             
-            -- Handle new players
+            -- Handle new players joining
             Players.PlayerAdded:Connect(function(player)
-                if ESPEnabled then
-                    task.wait(1)
+                if ESPEnabled and player ~= LocalPlayer then
+                    task.wait(1) -- Wait for character to load
                     createESP(player)
                 end
             end)
@@ -1288,16 +1284,41 @@ do
             Players.PlayerRemoving:Connect(function(player)
                 if ESPObjects[player] then
                     local data = ESPObjects[player]
-                    if data.billboard then data.billboard:Destroy() end
-                    if data.box then data.box:Remove() end
-                    if data.boxOutline then data.boxOutline:Remove() end
-                    if data.tracer then data.tracer:Remove() end
+                    pcall(function()
+                        if data.billboard then data.billboard:Destroy() end
+                        if data.box then data.box:Remove() end
+                        if data.boxOutline then data.boxOutline:Remove() end
+                        if data.tracer then data.tracer:Remove() end
+                    end)
                     ESPObjects[player] = nil
                 end
             end)
             
-            -- Update loop
-            ESPUpdateConn = RunService.RenderStepped:Connect(updateESP)
+            -- Continuous check for missing ESP (every 5 seconds)
+            task.spawn(function()
+                while ESPEnabled do
+                    task.wait(5)
+                    if ESPEnabled then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character and not ESPObjects[player] then
+                                print("[AdorHUB] Creating missing ESP for: " .. player.Name)
+                                createESP(player)
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            -- Update loop (optimized - every 2 frames)
+            local espFrameCount = 0
+            ESPUpdateConn = RunService.RenderStepped:Connect(function()
+                espFrameCount = espFrameCount + 1
+                if espFrameCount % 2 == 0 then -- Update every 2 frames for FPS
+                    updateESP()
+                end
+            end)
+            
+            print("[AdorHUB] ESP Master enabled")
         else
             if ESPUpdateConn then
                 ESPUpdateConn:Disconnect()
@@ -1306,12 +1327,16 @@ do
             
             -- Clean all ESP
             for player, data in pairs(ESPObjects) do
-                if data.billboard then data.billboard:Destroy() end
-                if data.box then data.box:Remove() end
-                if data.boxOutline then data.boxOutline:Remove() end
-                if data.tracer then data.tracer:Remove() end
+                pcall(function()
+                    if data.billboard then data.billboard:Destroy() end
+                    if data.box then data.box:Remove() end
+                    if data.boxOutline then data.boxOutline:Remove() end
+                    if data.tracer then data.tracer:Remove() end
+                end)
             end
             ESPObjects = {}
+            
+            print("[AdorHUB] ESP Master disabled")
         end
     end)
     
