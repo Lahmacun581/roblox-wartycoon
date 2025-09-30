@@ -385,6 +385,66 @@ local PlayerContent = PlayerTab
         end
     end)
     
+    -- FOV Size Slider
+    local FOVSizeLabel = Instance.new("TextLabel")
+    FOVSizeLabel.Size = UDim2.new(1, -16, 0, 25)
+    FOVSizeLabel.BackgroundTransparency = 1
+    FOVSizeLabel.Text = "📍 FOV Size: 150"
+    FOVSizeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    FOVSizeLabel.Font = Enum.Font.SourceSansBold
+    FOVSizeLabel.TextSize = 14
+    FOVSizeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    FOVSizeLabel.Parent = PlayerContent
+    
+    local FOVSliderBG = Instance.new("Frame")
+    FOVSliderBG.Size = UDim2.new(1, -16, 0, 8)
+    FOVSliderBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    FOVSliderBG.BorderSizePixel = 0
+    FOVSliderBG.Parent = PlayerContent
+    local FOVSliderBGCorner = Instance.new("UICorner")
+    FOVSliderBGCorner.CornerRadius = UDim.new(0, 4)
+    FOVSliderBGCorner.Parent = FOVSliderBG
+    
+    local FOVSliderFill = Instance.new("Frame")
+    FOVSliderFill.Size = UDim2.new(0.5, 0, 1, 0)
+    FOVSliderFill.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+    FOVSliderFill.BorderSizePixel = 0
+    FOVSliderFill.Parent = FOVSliderBG
+    local FOVSliderFillCorner = Instance.new("UICorner")
+    FOVSliderFillCorner.CornerRadius = UDim.new(0, 4)
+    FOVSliderFillCorner.Parent = FOVSliderFill
+    
+    local draggingSlider = false
+    FOVSliderBG.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingSlider = true
+        end
+    end)
+    
+    FOVSliderBG.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingSlider = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = input.Position.X
+            local sliderPos = FOVSliderBG.AbsolutePosition.X
+            local sliderSize = FOVSliderBG.AbsoluteSize.X
+            local relativePos = math.clamp((mousePos - sliderPos) / sliderSize, 0, 1)
+            
+            FOVSliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+            
+            local fovSize = math.floor(50 + (relativePos * 350)) -- 50-400 arası
+            FOVSizeLabel.Text = "📍 FOV Size: " .. fovSize
+            
+            if fovCircle then
+                fovCircle.Radius = fovSize
+            end
+        end
+    end)
+    
     -- ESP Toggle
     local ESPEnabled = false
     local ESPObjects = {}
@@ -676,6 +736,77 @@ local PlayerContent = PlayerTab
                         end
                     end
                 end
+            end)
+        end
+    end)
+    
+    -- Silent Aim Toggle
+    local SilentAimEnabled = false
+    local SilentAimBtn = Instance.new("TextButton")
+    SilentAimBtn.Size = UDim2.new(1, -16, 0, 45)
+    SilentAimBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    SilentAimBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    SilentAimBtn.Text = "🎯 Silent Aim: OFF"
+    SilentAimBtn.Font = Enum.Font.SourceSansBold
+    SilentAimBtn.TextSize = 18
+    SilentAimBtn.Parent = PlayerContent
+    local SilentAimCorner = Instance.new("UICorner")
+    SilentAimCorner.CornerRadius = UDim.new(0, 8)
+    SilentAimCorner.Parent = SilentAimBtn
+    
+    local function getClosestPlayer()
+        local camera = workspace.CurrentCamera
+        local mousePos = UserInputService:GetMouseLocation()
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local char = player.Character
+                local head = char:FindFirstChild("Head")
+                if head then
+                    local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        if distance < fovCircle.Radius and distance < shortestDistance then
+                            shortestDistance = distance
+                            closestPlayer = player
+                        end
+                    end
+                end
+            end
+        end
+        
+        return closestPlayer
+    end
+    
+    -- Silent Aim hook
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        if SilentAimEnabled and method == "FireServer" and self.Name:find("Fire") or self.Name:find("Shoot") then
+            local target = getClosestPlayer()
+            if target and target.Character then
+                local head = target.Character:FindFirstChild("Head")
+                if head then
+                    args[1] = head.Position
+                end
+            end
+        end
+        
+        return oldNamecall(self, unpack(args))
+    end)
+    
+    SilentAimBtn.MouseButton1Click:Connect(function()
+        SilentAimEnabled = not SilentAimEnabled
+        SilentAimBtn.Text = "🎯 Silent Aim: " .. (SilentAimEnabled and "ON" or "OFF")
+        SilentAimBtn.BackgroundColor3 = SilentAimEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(200, 50, 50)
+        
+        if SilentAimEnabled then
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Silent Aim aktif! FOV içindeki hedeflere otomatik nisan alır."; Duration = 3})
             end)
         end
     end)
@@ -1448,57 +1579,82 @@ local MiscContent = MiscTab
         end
     end)
 
--- GUI'yi sürüklenebilir yapmak (düzeltilmiş)
-local dragging = false
-local dragStart = nil
-local startPos = nil
+-- GUI'yi sürüklenebilir yapmak (düzeltilmiş v2)
+local guiDragging = false
+local guiDragStart = nil
+local guiStartPos = nil
 
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
+        guiDragging = true
+        guiDragStart = input.Position
+        guiStartPos = MainFrame.Position
         
-        input.Changed:Connect(function()
+        local connection
+        connection = input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+                guiDragging = false
+                connection:Disconnect()
             end
         end)
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
+    if guiDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - guiDragStart
         MainFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
+            guiStartPos.X.Scale,
+            guiStartPos.X.Offset + delta.X,
+            guiStartPos.Y.Scale,
+            guiStartPos.Y.Offset + delta.Y
         )
     end
 end)
 
--- Kapatma butonuna tıklanınca GUI'yi yok et
-CloseBtn.MouseButton1Click:Connect(function()
+-- Kapatma butonuna tıklanınca GUI'yi yok et (düzeltilmiş)
+local function closeGUI()
+    -- FOV Circle temizle
     if getgenv().WarTycoonGUI and getgenv().WarTycoonGUI.FOVCircle then
-        getgenv().WarTycoonGUI.FOVCircle:Remove()
+        pcall(function()
+            getgenv().WarTycoonGUI.FOVCircle:Remove()
+        end)
         getgenv().WarTycoonGUI.FOVCircle = nil
     end
-    if ScreenGui and ScreenGui.Parent then
-        ScreenGui:Destroy()
+    
+    -- ESP temizle
+    if ESPEnabled then
+        for player, _ in pairs(ESPObjects) do
+            pcall(function()
+                if ESPObjects[player] and ESPObjects[player].billboard then
+                    ESPObjects[player].billboard:Destroy()
+                end
+            end)
+        end
+        ESPObjects = {}
     end
-end)
--- Optional: ESC ile kapatma (isteğe bağlı)
+    
+    -- GUI temizle
+    if ScreenGui and ScreenGui.Parent then
+        pcall(function()
+            ScreenGui:Destroy()
+        end)
+    end
+    
+    -- Global temizle
+    getgenv().WarTycoonGUI = nil
+    
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "GUI kapatıldı"; Duration = 2})
+    end)
+end
+
+CloseBtn.MouseButton1Click:Connect(closeGUI)
+
+-- Optional: ESC ile kapatma
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.Escape then
-        if getgenv().WarTycoonGUI and getgenv().WarTycoonGUI.FOVCircle then
-            getgenv().WarTycoonGUI.FOVCircle:Remove()
-            getgenv().WarTycoonGUI.FOVCircle = nil
-        end
-        if ScreenGui and ScreenGui.Parent then
-            ScreenGui:Destroy()
-        end
+    if input.KeyCode == Enum.KeyCode.Delete then -- ESC yerine DELETE (daha güvenli)
+        closeGUI()
     end
 end)
