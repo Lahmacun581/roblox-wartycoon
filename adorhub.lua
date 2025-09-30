@@ -465,7 +465,39 @@ end
 local function createToggle(parent, text, color, callback)
     local enabled = false
     
-    local btn = createButton(parent, text .. ": OFF", color, function()
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 45)
+    btn.BackgroundColor3 = color
+    btn.Text = text .. ": OFF"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 15
+    btn.Font = Enum.Font.GothamSemibold
+    btn.AutoButtonColor = false
+    btn.Parent = parent
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = btn
+    
+    -- Hover effect
+    btn.MouseEnter:Connect(function()
+        if not enabled then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.new(
+                math.min(color.R + 0.1, 1),
+                math.min(color.G + 0.1, 1),
+                math.min(color.B + 0.1, 1)
+            )}):Play()
+        end
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        if not enabled then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
+        end
+    end)
+    
+    -- Click handler
+    btn.MouseButton1Click:Connect(function()
         enabled = not enabled
         btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
         
@@ -475,8 +507,23 @@ local function createToggle(parent, text, color, callback)
             TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
         end
         
+        print("[AdorHUB] " .. text .. " toggled: " .. tostring(enabled))
+        
         if callback then
-            callback(enabled)
+            local success, err = pcall(function()
+                callback(enabled)
+            end)
+            if not success then
+                warn("[AdorHUB] Error in " .. text .. " callback: " .. tostring(err))
+            end
+        end
+    end)
+    
+    -- Auto-update canvas size
+    task.spawn(function()
+        task.wait(0.1)
+        if parent:IsA("ScrollingFrame") then
+            parent.CanvasSize = UDim2.new(0, 0, 0, parent.UIListLayout.AbsoluteContentSize.Y + 20)
         end
     end)
     
