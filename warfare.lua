@@ -829,45 +829,116 @@ local PlayerContent = PlayerTab
     NoSpreadCorner.Parent = NoSpreadBtn
     
     local spreadConnection
+    local spreadKeywords = {
+        -- Spread related
+        "spread", "bloom", "deviation", "inaccuracy", "scatter", "dispersion",
+        -- Accuracy related
+        "accuracy", "precision", "stability",
+        -- Recoil related (ek)
+        "kickback", "sway", "shake", "wobble"
+    }
+    
     NoSpreadBtn.MouseButton1Click:Connect(function()
         NoSpreadEnabled = not NoSpreadEnabled
         NoSpreadBtn.Text = "🎯 No Spread: " .. (NoSpreadEnabled and "ON" or "OFF")
         NoSpreadBtn.BackgroundColor3 = NoSpreadEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(100, 150, 200)
         
         if NoSpreadEnabled then
+            local modifiedCount = 0
+            
             spreadConnection = RunService.Heartbeat:Connect(function()
                 if not NoSpreadEnabled then return end
                 local char = LocalPlayer.Character
-                if char then
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            -- Spread değerlerini sıfırla
-                            for _, obj in ipairs(tool:GetDescendants()) do
-                                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
-                                    local name = string.lower(obj.Name)
-                                    if string.find(name, "spread") or string.find(name, "accuracy") or string.find(name, "bloom") then
-                                        if string.find(name, "accuracy") then
-                                            obj.Value = 100 -- Accuracy maksimum
+                if not char then return end
+                
+                -- Tüm silahları tara
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        -- 1. Tüm descendants'leri tara
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = string.lower(obj.Name)
+                                local modified = false
+                                
+                                -- Anahtar kelimeleri kontrol et
+                                for _, keyword in ipairs(spreadKeywords) do
+                                    if string.find(name, keyword) then
+                                        if keyword == "accuracy" or keyword == "precision" or keyword == "stability" then
+                                            if obj.Value < 100 then
+                                                obj.Value = 100
+                                                modified = true
+                                            end
                                         else
-                                            obj.Value = 0 -- Spread/Bloom minimum
+                                            if obj.Value > 0 then
+                                                obj.Value = 0
+                                                modified = true
+                                            end
+                                        end
+                                        break
+                                    end
+                                end
+                                
+                                if modified then
+                                    modifiedCount = modifiedCount + 1
+                                end
+                            elseif obj:IsA("BoolValue") then
+                                local name = string.lower(obj.Name)
+                                -- Boolean spread ayarlarını kapat
+                                if string.find(name, "spread") or string.find(name, "bloom") then
+                                    obj.Value = false
+                                end
+                            end
+                        end
+                        
+                        -- 2. Özel klasorleri kontrol et
+                        local folders = {
+                            "Configuration", "Config", "Settings", "Stats", 
+                            "GunStats", "WeaponStats", "Properties", "Data"
+                        }
+                        
+                        for _, folderName in ipairs(folders) do
+                            local folder = tool:FindFirstChild(folderName)
+                            if folder then
+                                for _, obj in ipairs(folder:GetDescendants()) do
+                                    if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                        local name = string.lower(obj.Name)
+                                        for _, keyword in ipairs(spreadKeywords) do
+                                            if string.find(name, keyword) then
+                                                if keyword == "accuracy" or keyword == "precision" or keyword == "stability" then
+                                                    obj.Value = 100
+                                                else
+                                                    obj.Value = 0
+                                                end
+                                                break
+                                            end
                                         end
                                     end
                                 end
                             end
-                            
-                            -- Configuration klasoründeki değerleri de kontrol et
-                            local config = tool:FindFirstChild("Configuration") or tool:FindFirstChild("Config") or tool:FindFirstChild("Settings")
-                            if config then
-                                for _, obj in ipairs(config:GetChildren()) do
-                                    if obj:IsA("NumberValue") or obj:IsA("IntValue") then
-                                        local name = string.lower(obj.Name)
-                                        if string.find(name, "spread") or string.find(name, "bloom") then
-                                            obj.Value = 0
-                                        elseif string.find(name, "accuracy") then
-                                            obj.Value = 100
+                        end
+                        
+                        -- 3. ModuleScript'lerdeki değerleri değiştir (advanced)
+                        for _, module in ipairs(tool:GetDescendants()) do
+                            if module:IsA("ModuleScript") then
+                                pcall(function()
+                                    local data = require(module)
+                                    if type(data) == "table" then
+                                        -- Spread değerlerini bul ve değiştir
+                                        for key, value in pairs(data) do
+                                            local keyLower = string.lower(tostring(key))
+                                            for _, keyword in ipairs(spreadKeywords) do
+                                                if string.find(keyLower, keyword) then
+                                                    if keyword == "accuracy" or keyword == "precision" then
+                                                        data[key] = 100
+                                                    elseif type(value) == "number" then
+                                                        data[key] = 0
+                                                    end
+                                                    break
+                                                end
+                                            end
                                         end
                                     end
-                                end
+                                end)
                             end
                         end
                     end
@@ -875,13 +946,15 @@ local PlayerContent = PlayerTab
             end)
             
             pcall(function()
-                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "No Spread aktif! Mermi dağılımı kaldırıldı."; Duration = 2})
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "No Spread aktif! Tüm dağılım kaldırıldı."; Duration = 2})
             end)
+            print("[NO SPREAD] Enabled - Monitoring all weapon values")
         else
             if spreadConnection then
                 spreadConnection:Disconnect()
                 spreadConnection = nil
             end
+            print("[NO SPREAD] Disabled")
         end
     end)
     
