@@ -246,38 +246,135 @@ tabs["Main"].button.TextColor3 = Color3.fromRGB(255, 255, 255)
 tabs["Main"].content.Visible = true
 currentTab = "Main"
 
--- Eski Content'i MainTab olarak kullan
-local Content = MainTab
+-- ===== MAIN TAB: RemoteEvent Araçları =====
+local MainContent = MainTab
+
+    -- RemoteEvent adı girişi
+    local NameBox = Instance.new("TextBox")
+    NameBox.Size = UDim2.new(1, -16, 0, 35)
+    NameBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    NameBox.TextColor3 = Color3.fromRGB(255,255,255)
+    NameBox.PlaceholderText = "🔍 Event adı (AddMoney, CollectCash...)"
+    NameBox.Text = "AddMoney"
+    NameBox.Font = Enum.Font.SourceSans
+    NameBox.TextSize = 16
+    NameBox.Parent = MainContent
+    local NameBoxCorner = Instance.new("UICorner")
+    NameBoxCorner.CornerRadius = UDim.new(0, 6)
+    NameBoxCorner.Parent = NameBox
     
-    -- Para ekleme butonu
+    -- Yenile butonu
+    local RefreshBtn = Instance.new("TextButton")
+    RefreshBtn.Size = UDim2.new(0.48, -4, 0, 35)
+    RefreshBtn.BackgroundColor3 = Color3.fromRGB(70, 120, 70)
+    RefreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    RefreshBtn.Text = "🔄 Yenile"
+    RefreshBtn.Font = Enum.Font.SourceSansBold
+    RefreshBtn.TextSize = 16
+    RefreshBtn.Parent = MainContent
+    local RefreshCorner = Instance.new("UICorner")
+    RefreshCorner.CornerRadius = UDim.new(0, 6)
+    RefreshCorner.Parent = RefreshBtn
+    
+    -- Listele butonu
+    local ListBtn = Instance.new("TextButton")
+    ListBtn.Size = UDim2.new(0.48, -4, 0, 35)
+    ListBtn.BackgroundColor3 = Color3.fromRGB(100, 80, 140)
+    ListBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    ListBtn.Text = "📋 Listele"
+    ListBtn.Font = Enum.Font.SourceSansBold
+    ListBtn.TextSize = 16
+    ListBtn.Parent = MainContent
+    local ListCorner = Instance.new("UICorner")
+    ListCorner.CornerRadius = UDim.new(0, 6)
+    ListCorner.Parent = ListBtn
+    
+    -- Fire Remote butonu
     local AddMoneyBtn = Instance.new("TextButton")
-    AddMoneyBtn.Size = UDim2.new(0, 150, 0, 30)
-    AddMoneyBtn.Position = UDim2.new(0, 10, 0, 10)
+    AddMoneyBtn.Size = UDim2.new(1, -16, 0, 40)
     AddMoneyBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
     AddMoneyBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    AddMoneyBtn.Text = "Fire Remote"
+    AddMoneyBtn.Text = "💥 Fire Remote ($100,000)"
     AddMoneyBtn.Font = Enum.Font.SourceSansBold
-    AddMoneyBtn.TextSize = 16
-    AddMoneyBtn.Parent = Content
-    
+    AddMoneyBtn.TextSize = 18
+    AddMoneyBtn.Parent = MainContent
     local AddMoneyCorner = Instance.new("UICorner")
-    AddMoneyCorner.CornerRadius = UDim.new(0, 6)
+    AddMoneyCorner.CornerRadius = UDim.new(0, 8)
     AddMoneyCorner.Parent = AddMoneyBtn
     
-    -- Collector Value Manipulator
-    local CollectorBtn = Instance.new("TextButton")
-    CollectorBtn.Size = UDim2.new(0, 150, 0, 30)
-    CollectorBtn.Position = UDim2.new(0, 170, 0, 10)
-    CollectorBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
-    CollectorBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    CollectorBtn.Text = "Find Collectors"
-    CollectorBtn.Font = Enum.Font.SourceSansBold
-    CollectorBtn.TextSize = 16
-    CollectorBtn.Parent = Content
+-- ===== FARM TAB: Auto Farm Araçları =====
+local FarmContent = FarmTab
+
+    -- Spam Collect butonu
+    local AddToCollectorBtn = Instance.new("TextButton")
+    AddToCollectorBtn.Size = UDim2.new(1, -16, 0, 45)
+    AddToCollectorBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+    AddToCollectorBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    AddToCollectorBtn.Text = "⚡ Spam Collect (Toggle)"
+    AddToCollectorBtn.Font = Enum.Font.SourceSansBold
+    AddToCollectorBtn.TextSize = 18
+    AddToCollectorBtn.Parent = FarmContent
+    local AddToCollectorCorner = Instance.new("UICorner")
+    AddToCollectorCorner.CornerRadius = UDim.new(0, 8)
+    AddToCollectorCorner.Parent = AddToCollectorBtn
     
-    local CollectorCorner = Instance.new("UICorner")
-    CollectorCorner.CornerRadius = UDim.new(0, 6)
-    CollectorCorner.Parent = CollectorBtn
+    -- Auto Collect butonu
+    local AutoCollectBtn = Instance.new("TextButton")
+    AutoCollectBtn.Size = UDim2.new(1, -16, 0, 40)
+    AutoCollectBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+    AutoCollectBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    AutoCollectBtn.Text = "🧡 Auto Collect All"
+    AutoCollectBtn.Font = Enum.Font.SourceSansBold
+    AutoCollectBtn.TextSize = 16
+    AutoCollectBtn.Parent = FarmContent
+    local AutoCollectCorner = Instance.new("UICorner")
+    AutoCollectCorner.CornerRadius = UDim.new(0, 6)
+    AutoCollectCorner.Parent = AutoCollectBtn
+    
+    -- Scan Cash/Money butonu
+    local ScanBtn = Instance.new("TextButton")
+    ScanBtn.Size = UDim2.new(1, -16, 0, 40)
+    ScanBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 140)
+    ScanBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    ScanBtn.Text = "🔍 Scan Cash/Money Events"
+    ScanBtn.Font = Enum.Font.SourceSansBold
+    ScanBtn.TextSize = 16
+    ScanBtn.Parent = FarmContent
+    local ScanCorner = Instance.new("UICorner")
+    ScanCorner.CornerRadius = UDim.new(0, 6)
+    ScanCorner.Parent = ScanBtn
+    
+    -- Scan Result
+    local ScanResult = Instance.new("TextLabel")
+    ScanResult.Size = UDim2.new(1, -16, 0, 80)
+    ScanResult.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    ScanResult.TextColor3 = Color3.fromRGB(200,200,200)
+    ScanResult.Text = "Sonuç: Henüz taranmadı"
+    ScanResult.Font = Enum.Font.SourceSans
+    ScanResult.TextSize = 14
+    ScanResult.TextWrapped = true
+    ScanResult.TextXAlignment = Enum.TextXAlignment.Left
+    ScanResult.TextYAlignment = Enum.TextYAlignment.Top
+    ScanResult.Parent = FarmContent
+    local ScanResultCorner = Instance.new("UICorner")
+    ScanResultCorner.CornerRadius = UDim.new(0, 6)
+    ScanResultCorner.Parent = ScanResult
+    
+-- ===== MISC TAB: Debug Araçları =====
+local MiscContent = MiscTab
+
+    -- List All Values butonu
+    local ExplorerBtn = Instance.new("TextButton")
+    ExplorerBtn.Size = UDim2.new(1, -16, 0, 40)
+    ExplorerBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
+    ExplorerBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    ExplorerBtn.Text = "📊 List All Values (F9)"
+    ExplorerBtn.Font = Enum.Font.SourceSansBold
+    ExplorerBtn.TextSize = 16
+    ExplorerBtn.Parent = MiscContent
+    local ExplorerCorner = Instance.new("UICorner")
+    ExplorerCorner.CornerRadius = UDim.new(0, 6)
+    ExplorerCorner.Parent = ExplorerBtn
     
     -- Gelişmiş Collector bulucu ve manipulator
     local function findAndModifyCollectors()
