@@ -15,15 +15,16 @@ end
 -- Yeni GUI ve FOV Circle için tablo
 getgenv().WarTycoonGUI = getgenv().WarTycoonGUI or {}
 
--- FOV Circle (örnek)
+-- FOV Circle (gelişmiş)
 local fovCircle = Drawing and Drawing.new and Drawing.new("Circle") or nil
 if fovCircle then
-    fovCircle.Radius = 200
-    fovCircle.Visible = true
-    fovCircle.Color = Color3.fromRGB(212, 34, 255)
-    fovCircle.Thickness = 1
-    fovCircle.Position = Vector2.new(0, 0)
-    -- FOV Circle'ı global kaydet
+    fovCircle.Radius = 150
+    fovCircle.Visible = false  -- Başlangıçta kapalı
+    fovCircle.Color = Color3.fromRGB(70, 130, 180)
+    fovCircle.Thickness = 2
+    fovCircle.NumSides = 64  -- Daha yuvarlak
+    fovCircle.Filled = false
+    fovCircle.Transparency = 0.8
     getgenv().WarTycoonGUI.FOVCircle = fovCircle
 end
 
@@ -359,6 +360,236 @@ local FarmContent = FarmTab
     local ScanResultCorner = Instance.new("UICorner")
     ScanResultCorner.CornerRadius = UDim.new(0, 6)
     ScanResultCorner.Parent = ScanResult
+    
+-- ===== PLAYER TAB: ESP, FOV, Teleport =====
+local PlayerContent = PlayerTab
+
+    -- FOV Toggle
+    local FOVToggle = Instance.new("TextButton")
+    FOVToggle.Size = UDim2.new(1, -16, 0, 40)
+    FOVToggle.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+    FOVToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    FOVToggle.Text = "🎯 FOV Circle: OFF"
+    FOVToggle.Font = Enum.Font.SourceSansBold
+    FOVToggle.TextSize = 16
+    FOVToggle.Parent = PlayerContent
+    local FOVCorner = Instance.new("UICorner")
+    FOVCorner.CornerRadius = UDim.new(0, 6)
+    FOVCorner.Parent = FOVToggle
+    
+    FOVToggle.MouseButton1Click:Connect(function()
+        if fovCircle then
+            fovCircle.Visible = not fovCircle.Visible
+            FOVToggle.Text = "🎯 FOV Circle: " .. (fovCircle.Visible and "ON" or "OFF")
+            FOVToggle.BackgroundColor3 = fovCircle.Visible and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(70, 130, 180)
+        end
+    end)
+    
+    -- ESP Toggle
+    local ESPEnabled = false
+    local ESPObjects = {}
+    local ESPToggle = Instance.new("TextButton")
+    ESPToggle.Size = UDim2.new(1, -16, 0, 40)
+    ESPToggle.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+    ESPToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    ESPToggle.Text = "👁️ ESP: OFF"
+    ESPToggle.Font = Enum.Font.SourceSansBold
+    ESPToggle.TextSize = 16
+    ESPToggle.Parent = PlayerContent
+    local ESPCorner = Instance.new("UICorner")
+    ESPCorner.CornerRadius = UDim.new(0, 6)
+    ESPCorner.Parent = ESPToggle
+    
+    -- ESP Functions
+    local function createESP(player)
+        if not player.Character or ESPObjects[player] or player == LocalPlayer then return end
+        local char = player.Character
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESP_" .. player.Name
+        billboard.Adornee = hrp
+        billboard.Size = UDim2.new(0, 200, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = hrp
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = player.Name
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+        nameLabel.TextStrokeTransparency = 0.5
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.TextSize = 16
+        nameLabel.Parent = billboard
+        
+        local distLabel = Instance.new("TextLabel")
+        distLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        distLabel.Position = UDim2.new(0, 0, 0.5, 0)
+        distLabel.BackgroundTransparency = 1
+        distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        distLabel.TextStrokeTransparency = 0.5
+        distLabel.Font = Enum.Font.SourceSans
+        distLabel.TextSize = 14
+        distLabel.Parent = billboard
+        
+        ESPObjects[player] = {billboard = billboard, distLabel = distLabel}
+    end
+    
+    local function removeESP(player)
+        if ESPObjects[player] then
+            if ESPObjects[player].billboard then
+                ESPObjects[player].billboard:Destroy()
+            end
+            ESPObjects[player] = nil
+        end
+    end
+    
+    local function updateESP()
+        if not ESPEnabled then return end
+        local myChar = LocalPlayer.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        local myPos = myChar.HumanoidRootPart.Position
+        
+        for player, data in pairs(ESPObjects) do
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (player.Character.HumanoidRootPart.Position - myPos).Magnitude
+                data.distLabel.Text = string.format("%.0f studs", dist)
+            end
+        end
+    end
+    
+    ESPToggle.MouseButton1Click:Connect(function()
+        ESPEnabled = not ESPEnabled
+        ESPToggle.Text = "👁️ ESP: " .. (ESPEnabled and "ON" or "OFF")
+        ESPToggle.BackgroundColor3 = ESPEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(200, 100, 50)
+        
+        if ESPEnabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    createESP(player)
+                end
+            end
+        else
+            for player, _ in pairs(ESPObjects) do
+                removeESP(player)
+            end
+        end
+    end)
+    
+    Players.PlayerAdded:Connect(function(player)
+        if ESPEnabled and player ~= LocalPlayer then
+            task.wait(1)
+            createESP(player)
+        end
+    end)
+    
+    Players.PlayerRemoving:Connect(function(player)
+        removeESP(player)
+    end)
+    
+    RunService.Heartbeat:Connect(updateESP)
+    
+    -- FOV Circle pozisyon güncelleyici
+    RunService.RenderStepped:Connect(function()
+        if fovCircle and fovCircle.Visible then
+            local camera = workspace.CurrentCamera
+            local viewportSize = camera.ViewportSize
+            fovCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+        end
+    end)
+    
+    -- Teleport List
+    local TPList = Instance.new("ScrollingFrame")
+    TPList.Size = UDim2.new(1, -16, 0, 120)
+    TPList.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    TPList.BorderSizePixel = 0
+    TPList.ScrollBarThickness = 4
+    TPList.Parent = PlayerContent
+    
+    local TPLayout = Instance.new("UIListLayout")
+    TPLayout.FillDirection = Enum.FillDirection.Vertical
+    TPLayout.Padding = UDim.new(0, 4)
+    TPLayout.Parent = TPList
+    
+    local TPPad = Instance.new("UIPadding")
+    TPPad.PaddingTop = UDim.new(0, 6)
+    TPPad.PaddingLeft = UDim.new(0, 6)
+    TPPad.PaddingRight = UDim.new(0, 6)
+    TPPad.Parent = TPList
+    
+    local TPCorner = Instance.new("UICorner")
+    TPCorner.CornerRadius = UDim.new(0, 6)
+    TPCorner.Parent = TPList
+    
+    local function smoothTP(targetPos)
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = char.HumanoidRootPart
+        
+        local startPos = hrp.Position
+        local distance = (targetPos - startPos).Magnitude
+        local steps = math.ceil(distance / 50)
+        
+        for i = 1, steps do
+            local alpha = i / steps
+            local newPos = startPos:Lerp(targetPos, alpha)
+            hrp.CFrame = CFrame.new(newPos)
+            task.wait(0.05 + math.random() * 0.03)
+        end
+    end
+    
+    local function updateTPList()
+        for _, child in ipairs(TPList:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(1, -12, 0, 28)
+                btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                btn.TextColor3 = Color3.fromRGB(255,255,255)
+                btn.Text = "🚀 " .. player.Name
+                btn.Font = Enum.Font.SourceSans
+                btn.TextSize = 14
+                btn.Parent = TPList
+                
+                local btnCorner = Instance.new("UICorner")
+                btnCorner.CornerRadius = UDim.new(0, 4)
+                btnCorner.Parent = btn
+                
+                btn.MouseButton1Click:Connect(function()
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        smoothTP(player.Character.HumanoidRootPart.Position)
+                        pcall(function()
+                            StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "TP: " .. player.Name; Duration = 2})
+                        end)
+                    end
+                end)
+            end
+        end
+    end
+    
+    updateTPList()
+    Players.PlayerAdded:Connect(function() task.wait(1) updateTPList() end)
+    Players.PlayerRemoving:Connect(updateTPList)
+    
+    -- Refresh TP Button
+    local RefreshTPBtn = Instance.new("TextButton")
+    RefreshTPBtn.Size = UDim2.new(1, -16, 0, 35)
+    RefreshTPBtn.BackgroundColor3 = Color3.fromRGB(70, 120, 70)
+    RefreshTPBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    RefreshTPBtn.Text = "🔄 Refresh Teleport List"
+    RefreshTPBtn.Font = Enum.Font.SourceSansBold
+    RefreshTPBtn.TextSize = 14
+    RefreshTPBtn.Parent = PlayerContent
+    local RefreshTPCorner = Instance.new("UICorner")
+    RefreshTPCorner.CornerRadius = UDim.new(0, 6)
+    RefreshTPCorner.Parent = RefreshTPBtn
+    RefreshTPBtn.MouseButton1Click:Connect(updateTPList)
     
 -- ===== MISC TAB: Debug Araçları =====
 local MiscContent = MiscTab
