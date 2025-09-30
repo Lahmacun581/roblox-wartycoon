@@ -357,27 +357,56 @@ createToggle("💰 Otomatik Para Toplama", function(enabled)
     getgenv().TurkSohbet.Enabled.AutoMoney = enabled
 end)
 
+local moneyFrameCount = 0
 RunService.Heartbeat:Connect(function()
     if getgenv().TurkSohbet.Enabled.AutoMoney then
+        moneyFrameCount = moneyFrameCount + 1
+        if moneyFrameCount % 5 ~= 0 then return end -- Her 5 frame'de bir (FPS için)
+        
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
             local hrp = char.HumanoidRootPart
             
-            -- Workspace'teki tüm objeleri kontrol et
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("BasePart") then
+            -- Workspace'teki para objelerini bul
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart") then
                     local name = string.lower(obj.Name)
-                    -- Para ile ilgili isimler
-                    if string.find(name, "money") or 
-                       string.find(name, "coin") or 
-                       string.find(name, "cash") or 
-                       string.find(name, "para") or
-                       string.find(name, "tl") then
+                    
+                    -- Sadece para objeleri (karakterleri hariç tut)
+                    local isMoney = (string.find(name, "cash") or 
+                                    string.find(name, "euro") or 
+                                    string.find(name, "money") or 
+                                    string.find(name, "coin") or
+                                    string.find(name, "tl") or
+                                    string.find(name, "dolar") or
+                                    string.find(name, "dollar"))
+                    
+                    -- Karakter değilse ve para ise
+                    local isNotPlayer = not obj:FindFirstChild("Humanoid") and 
+                                       not obj:FindFirstChild("HumanoidRootPart") and
+                                       obj.Parent ~= workspace.Camera
+                    
+                    if isMoney and isNotPlayer then
+                        -- Para modelinin ana partını bul
+                        local mainPart = nil
+                        if obj:IsA("Model") then
+                            mainPart = obj:FindFirstChild("Handle") or 
+                                      obj:FindFirstChild("Main") or 
+                                      obj:FindFirstChildWhichIsA("BasePart")
+                        elseif obj:IsA("BasePart") then
+                            mainPart = obj
+                        end
                         
                         -- Parayı karaktere getir
-                        pcall(function()
-                            obj.CFrame = hrp.CFrame
-                        end)
+                        if mainPart then
+                            pcall(function()
+                                mainPart.CFrame = hrp.CFrame
+                                -- Eğer CanCollide varsa kapat
+                                if mainPart:IsA("BasePart") then
+                                    mainPart.CanCollide = false
+                                end
+                            end)
+                        end
                     end
                 end
             end
