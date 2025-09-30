@@ -1,0 +1,37 @@
+# Roblox Script Project .gitignore
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Personal/Private
+config.lua
+private/
+secrets/
+
+# Test files
+test/
+tests/
+*.test.lua
