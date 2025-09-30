@@ -417,6 +417,298 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
     Duration = 3
 })
 
+-- Helper function to create buttons
+local function createButton(parent, text, color, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 45)
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 15
+    btn.Font = Enum.Font.GothamSemibold
+    btn.AutoButtonColor = false
+    btn.Parent = parent
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = btn
+    
+    -- Hover effect
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.new(
+            math.min(color.R + 0.1, 1),
+            math.min(color.G + 0.1, 1),
+            math.min(color.B + 0.1, 1)
+        )}):Play()
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
+    end)
+    
+    if callback then
+        btn.MouseButton1Click:Connect(callback)
+    end
+    
+    return btn
+end
+
+-- Helper function to create toggle buttons
+local function createToggle(parent, text, color, callback)
+    local enabled = false
+    
+    local btn = createButton(parent, text .. ": OFF", color, function()
+        enabled = not enabled
+        btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
+        
+        if enabled then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 200, 100)}):Play()
+        else
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
+        end
+        
+        if callback then
+            callback(enabled)
+        end
+    end)
+    
+    return btn, function() return enabled end
+end
+
+-- ===== PLAYER TAB =====
+do
+    -- Speed Hack
+    local speedConn
+    createToggle(PlayerTab, "🏃 Speed Hack", Color3.fromRGB(100, 150, 255), function(enabled)
+        if enabled then
+            speedConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid.WalkSpeed = 100
+                end
+            end)
+        else
+            if speedConn then speedConn:Disconnect() end
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = 16
+            end
+        end
+    end)
+    
+    -- Super Jump
+    local jumpConn
+    createToggle(PlayerTab, "🦘 Super Jump", Color3.fromRGB(150, 100, 255), function(enabled)
+        if enabled then
+            jumpConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid.JumpPower = 120
+                end
+            end)
+        else
+            if jumpConn then jumpConn:Disconnect() end
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.JumpPower = 50
+            end
+        end
+    end)
+    
+    -- Infinite Jump
+    local infJumpConn
+    createToggle(PlayerTab, "♾️ Infinite Jump", Color3.fromRGB(255, 150, 100), function(enabled)
+        if enabled then
+            infJumpConn = UserInputService.JumpRequest:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+        else
+            if infJumpConn then infJumpConn:Disconnect() end
+        end
+    end)
+end
+
+-- ===== COMBAT TAB =====
+do
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local StarterGui = game:GetService("StarterGui")
+    
+    -- Infinite Ammo
+    local ammoConn
+    createToggle(CombatTab, "🔫 Infinite Ammo", Color3.fromRGB(255, 100, 100), function(enabled)
+        if enabled then
+            ammoConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            for _, obj in ipairs(tool:GetDescendants()) do
+                                if (obj:IsA("IntValue") or obj:IsA("NumberValue")) then
+                                    local name = string.lower(obj.Name)
+                                    if string.find(name, "ammo") or string.find(name, "clip") or string.find(name, "mag") then
+                                        obj.Value = 999
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if ammoConn then ammoConn:Disconnect() end
+        end
+    end)
+    
+    -- No Recoil
+    local recoilConn
+    createToggle(CombatTab, "🎯 No Recoil", Color3.fromRGB(150, 100, 200), function(enabled)
+        if enabled then
+            recoilConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            for _, obj in ipairs(tool:GetDescendants()) do
+                                if (obj:IsA("NumberValue") or obj:IsA("IntValue")) then
+                                    local name = string.lower(obj.Name)
+                                    if string.find(name, "recoil") then
+                                        obj.Value = 0
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if recoilConn then recoilConn:Disconnect() end
+        end
+    end)
+    
+    -- Hitbox Expander
+    local hitboxConn
+    createToggle(CombatTab, "📦 Hitbox Expander", Color3.fromRGB(200, 100, 200), function(enabled)
+        if enabled then
+            hitboxConn = RunService.Heartbeat:Connect(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            hrp.Size = Vector3.new(20, 20, 20)
+                            hrp.Transparency = 0.8
+                            hrp.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        else
+            if hitboxConn then hitboxConn:Disconnect() end
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.Size = Vector3.new(2, 2, 1)
+                        hrp.Transparency = 1
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- ===== VISUALS TAB =====
+do
+    local ESPEnabled = false
+    local ESPObjects = {}
+    
+    -- ESP Toggle
+    createToggle(VisualsTab, "👁️ ESP", Color3.fromRGB(100, 255, 150), function(enabled)
+        ESPEnabled = enabled
+        
+        if enabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local char = player.Character
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Adornee = hrp
+                        billboard.Size = UDim2.new(0, 200, 0, 60)
+                        billboard.StudsOffset = Vector3.new(0, 3, 0)
+                        billboard.AlwaysOnTop = true
+                        billboard.Parent = hrp
+                        
+                        local nameLabel = Instance.new("TextLabel")
+                        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+                        nameLabel.BackgroundTransparency = 1
+                        nameLabel.Text = player.Name
+                        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+                        nameLabel.TextStrokeTransparency = 0.5
+                        nameLabel.Font = Enum.Font.GothamBold
+                        nameLabel.TextSize = 16
+                        nameLabel.Parent = billboard
+                        
+                        local distLabel = Instance.new("TextLabel")
+                        distLabel.Size = UDim2.new(1, 0, 0.5, 0)
+                        distLabel.Position = UDim2.new(0, 0, 0.5, 0)
+                        distLabel.BackgroundTransparency = 1
+                        distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+                        distLabel.TextStrokeTransparency = 0.5
+                        distLabel.Font = Enum.Font.Gotham
+                        distLabel.TextSize = 14
+                        distLabel.Parent = billboard
+                        
+                        ESPObjects[player] = {billboard = billboard, distLabel = distLabel}
+                    end
+                end
+            end
+            
+            -- Update distances
+            RunService.Heartbeat:Connect(function()
+                if not ESPEnabled then return end
+                local myChar = LocalPlayer.Character
+                if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                    local myPos = myChar.HumanoidRootPart.Position
+                    for player, data in pairs(ESPObjects) do
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            local dist = (player.Character.HumanoidRootPart.Position - myPos).Magnitude
+                            data.distLabel.Text = string.format("%.0f studs", dist)
+                        end
+                    end
+                end
+            end)
+        else
+            for player, data in pairs(ESPObjects) do
+                if data.billboard then
+                    data.billboard:Destroy()
+                end
+            end
+            ESPObjects = {}
+        end
+    end)
+end
+
+-- ===== MISC TAB =====
+do
+    -- Credits
+    local creditsLabel = Instance.new("TextLabel")
+    creditsLabel.Size = UDim2.new(1, -20, 0, 80)
+    creditsLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    creditsLabel.Text = "AdorHUB v1.0\n\nCreated by Lahmacun581\nUniversal Script Hub"
+    creditsLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+    creditsLabel.TextSize = 14
+    creditsLabel.Font = Enum.Font.Gotham
+    creditsLabel.Parent = MiscTab
+    
+    local creditsCorner = Instance.new("UICorner")
+    creditsCorner.CornerRadius = UDim.new(0, 8)
+    creditsCorner.Parent = creditsLabel
+end
+
 print("[AdorHUB] GUI başarıyla yüklendi!")
 print("[AdorHUB] Versiyon: 1.0")
+print("[AdorHUB] Tüm özellikler aktif!")
 print("[AdorHUB] Hazır!")
