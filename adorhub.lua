@@ -259,6 +259,7 @@ local function createTab(name, icon, color)
     tabContent.BorderSizePixel = 0
     tabContent.ScrollBarThickness = 4
     tabContent.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
+    tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
     tabContent.Visible = false
     tabContent.Parent = ContentContainer
     
@@ -1548,6 +1549,7 @@ do
 end
 
 print("[AdorHUB] GUI başarıyla yüklendi!")
-print("[AdorHUB] Versiyon: 1.0")
-print("[AdorHUB] Tüm özellikler aktif!")
+print("[AdorHUB] Versiyon: 2.0")
+print("[AdorHUB] Player: 8 | Combat: 4 | Visuals: 7 | Misc: 1")
+print("[AdorHUB] Toplam 20 özellik aktif!")
 print("[AdorHUB] Hazır!")
