@@ -351,6 +351,40 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- Auto Collect Money
+getgenv().TurkSohbet.Enabled.AutoMoney = false
+createToggle("💰 Otomatik Para Toplama", function(enabled)
+    getgenv().TurkSohbet.Enabled.AutoMoney = enabled
+end)
+
+RunService.Heartbeat:Connect(function()
+    if getgenv().TurkSohbet.Enabled.AutoMoney then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hrp = char.HumanoidRootPart
+            
+            -- Workspace'teki tüm objeleri kontrol et
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    local name = string.lower(obj.Name)
+                    -- Para ile ilgili isimler
+                    if string.find(name, "money") or 
+                       string.find(name, "coin") or 
+                       string.find(name, "cash") or 
+                       string.find(name, "para") or
+                       string.find(name, "tl") then
+                        
+                        -- Parayı karaktere getir
+                        pcall(function()
+                            obj.CFrame = hrp.CFrame
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
 -- Teleport to Mouse
 createButton("🎯 Mouse'a Işınlan", Color3.fromRGB(100, 150, 255), function()
     local mouse = LocalPlayer:GetMouse()
