@@ -899,73 +899,328 @@ end
 
 -- ===== VISUALS TAB =====
 do
+    -- ESP System (Advanced)
     local ESPEnabled = false
+    local ESPBoxEnabled = true
+    local ESPNameEnabled = true
+    local ESPHealthEnabled = true
+    local ESPDistanceEnabled = true
+    local ESPTracerEnabled = false
     local ESPObjects = {}
+    local ESPUpdateConn
     
-    -- ESP Toggle
-    createToggle(VisualsTab, "👁️ ESP", Color3.fromRGB(100, 255, 150), function(enabled)
+    -- Helper function to create ESP for a player
+    local function createESP(player)
+        if player == LocalPlayer then return end
+        if ESPObjects[player] then return end
+        
+        local function setupESP()
+            local char = player.Character
+            if not char then return end
+            
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local humanoid = char:FindFirstChild("Humanoid")
+            if not hrp or not humanoid then return end
+            
+            local espData = {}
+            
+            -- Box ESP (Drawing)
+            if Drawing then
+                espData.boxOutline = Drawing.new("Square")
+                espData.boxOutline.Visible = false
+                espData.boxOutline.Color = Color3.new(0, 0, 0)
+                espData.boxOutline.Thickness = 3
+                espData.boxOutline.Filled = false
+                
+                espData.box = Drawing.new("Square")
+                espData.box.Visible = false
+                espData.box.Color = Color3.new(1, 1, 1)
+                espData.box.Thickness = 1
+                espData.box.Filled = false
+                
+                -- Tracer
+                espData.tracer = Drawing.new("Line")
+                espData.tracer.Visible = false
+                espData.tracer.Color = Color3.new(1, 1, 1)
+                espData.tracer.Thickness = 1
+            end
+            
+            -- Billboard GUI (Name, Health, Distance)
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "ESP_" .. player.Name
+            billboard.Adornee = hrp
+            billboard.Size = UDim2.new(0, 200, 0, 100)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+            billboard.Parent = hrp
+            
+            -- Name Label
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 0, 20)
+            nameLabel.Position = UDim2.new(0, 0, 0, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = player.Name
+            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            nameLabel.TextStrokeTransparency = 0
+            nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 14
+            nameLabel.Parent = billboard
+            
+            -- Health Bar Background
+            local healthBarBG = Instance.new("Frame")
+            healthBarBG.Size = UDim2.new(0, 100, 0, 6)
+            healthBarBG.Position = UDim2.new(0.5, -50, 0, 25)
+            healthBarBG.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            healthBarBG.BorderSizePixel = 0
+            healthBarBG.Parent = billboard
+            
+            local healthBarBGCorner = Instance.new("UICorner")
+            healthBarBGCorner.CornerRadius = UDim.new(0, 3)
+            healthBarBGCorner.Parent = healthBarBG
+            
+            -- Health Bar Fill
+            local healthBar = Instance.new("Frame")
+            healthBar.Size = UDim2.new(1, 0, 1, 0)
+            healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            healthBar.BorderSizePixel = 0
+            healthBar.Parent = healthBarBG
+            
+            local healthBarCorner = Instance.new("UICorner")
+            healthBarCorner.CornerRadius = UDim.new(0, 3)
+            healthBarCorner.Parent = healthBar
+            
+            -- Health Text
+            local healthLabel = Instance.new("TextLabel")
+            healthLabel.Size = UDim2.new(1, 0, 0, 15)
+            healthLabel.Position = UDim2.new(0, 0, 0, 35)
+            healthLabel.BackgroundTransparency = 1
+            healthLabel.Text = "100/100"
+            healthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            healthLabel.TextStrokeTransparency = 0
+            healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            healthLabel.Font = Enum.Font.Gotham
+            healthLabel.TextSize = 12
+            healthLabel.Parent = billboard
+            
+            -- Distance Label
+            local distLabel = Instance.new("TextLabel")
+            distLabel.Size = UDim2.new(1, 0, 0, 15)
+            distLabel.Position = UDim2.new(0, 0, 0, 52)
+            distLabel.BackgroundTransparency = 1
+            distLabel.Text = "0m"
+            distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+            distLabel.TextStrokeTransparency = 0
+            distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            distLabel.Font = Enum.Font.Gotham
+            distLabel.TextSize = 11
+            distLabel.Parent = billboard
+            
+            espData.billboard = billboard
+            espData.nameLabel = nameLabel
+            espData.healthBar = healthBar
+            espData.healthLabel = healthLabel
+            espData.distLabel = distLabel
+            espData.character = char
+            espData.humanoid = humanoid
+            
+            ESPObjects[player] = espData
+        end
+        
+        setupESP()
+        
+        -- Respawn handling
+        player.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if ESPEnabled then
+                if ESPObjects[player] then
+                    -- Clean old ESP
+                    local oldData = ESPObjects[player]
+                    if oldData.billboard then oldData.billboard:Destroy() end
+                    if oldData.box then oldData.box:Remove() end
+                    if oldData.boxOutline then oldData.boxOutline:Remove() end
+                    if oldData.tracer then oldData.tracer:Remove() end
+                    ESPObjects[player] = nil
+                end
+                createESP(player)
+            end
+        end)
+    end
+    
+    -- Update ESP
+    local function updateESP()
+        if not ESPEnabled then return end
+        
+        local camera = workspace.CurrentCamera
+        local myChar = LocalPlayer.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        local myPos = myChar.HumanoidRootPart.Position
+        
+        for player, data in pairs(ESPObjects) do
+            if player and player.Character then
+                local char = player.Character
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local humanoid = char:FindFirstChild("Humanoid")
+                
+                if hrp and humanoid then
+                    -- Distance
+                    local distance = (hrp.Position - myPos).Magnitude
+                    
+                    -- Update visibility based on settings
+                    if data.nameLabel then
+                        data.nameLabel.Visible = ESPNameEnabled
+                    end
+                    if data.healthBar and data.healthLabel then
+                        data.healthBar.Parent.Visible = ESPHealthEnabled
+                        data.healthLabel.Visible = ESPHealthEnabled
+                        
+                        -- Update health
+                        local healthPercent = humanoid.Health / humanoid.MaxHealth
+                        data.healthBar.Size = UDim2.new(healthPercent, 0, 1, 0)
+                        
+                        -- Health color
+                        if healthPercent > 0.6 then
+                            data.healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                        elseif healthPercent > 0.3 then
+                            data.healthBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+                        else
+                            data.healthBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                        end
+                        
+                        data.healthLabel.Text = string.format("%d/%d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth))
+                    end
+                    if data.distLabel then
+                        data.distLabel.Visible = ESPDistanceEnabled
+                        data.distLabel.Text = string.format("%.0fm", distance)
+                    end
+                    
+                    -- Box ESP
+                    if data.box and data.boxOutline then
+                        local vector, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                        
+                        if onScreen and ESPBoxEnabled then
+                            local head = char:FindFirstChild("Head")
+                            local headPos = head and camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0)) or vector
+                            local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                            
+                            local height = math.abs(headPos.Y - legPos.Y)
+                            local width = height / 2
+                            
+                            data.boxOutline.Size = Vector2.new(width, height)
+                            data.boxOutline.Position = Vector2.new(vector.X - width/2, vector.Y - height/2)
+                            data.boxOutline.Visible = true
+                            
+                            data.box.Size = Vector2.new(width, height)
+                            data.box.Position = Vector2.new(vector.X - width/2, vector.Y - height/2)
+                            data.box.Visible = true
+                            
+                            -- Distance-based color
+                            local color = distance < 50 and Color3.new(1, 0, 0) or distance < 100 and Color3.new(1, 1, 0) or Color3.new(1, 1, 1)
+                            data.box.Color = color
+                        else
+                            data.box.Visible = false
+                            data.boxOutline.Visible = false
+                        end
+                    end
+                    
+                    -- Tracer
+                    if data.tracer and ESPTracerEnabled then
+                        local vector, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                        if onScreen then
+                            local screenSize = camera.ViewportSize
+                            data.tracer.From = Vector2.new(screenSize.X / 2, screenSize.Y)
+                            data.tracer.To = Vector2.new(vector.X, vector.Y)
+                            data.tracer.Visible = true
+                            
+                            local color = distance < 50 and Color3.new(1, 0, 0) or distance < 100 and Color3.new(1, 1, 0) or Color3.new(1, 1, 1)
+                            data.tracer.Color = color
+                        else
+                            data.tracer.Visible = false
+                        end
+                    elseif data.tracer then
+                        data.tracer.Visible = false
+                    end
+                else
+                    -- Character invalid, recreate ESP
+                    if data.billboard then data.billboard:Destroy() end
+                    if data.box then data.box:Remove() end
+                    if data.boxOutline then data.boxOutline:Remove() end
+                    if data.tracer then data.tracer:Remove() end
+                    ESPObjects[player] = nil
+                    createESP(player)
+                end
+            end
+        end
+    end
+    
+    -- Main ESP Toggle
+    createToggle(VisualsTab, "👁️ ESP Master", Color3.fromRGB(100, 255, 150), function(enabled)
         ESPEnabled = enabled
         
         if enabled then
+            -- Create ESP for all players
             for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local char = player.Character
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local billboard = Instance.new("BillboardGui")
-                        billboard.Adornee = hrp
-                        billboard.Size = UDim2.new(0, 200, 0, 60)
-                        billboard.StudsOffset = Vector3.new(0, 3, 0)
-                        billboard.AlwaysOnTop = true
-                        billboard.Parent = hrp
-                        
-                        local nameLabel = Instance.new("TextLabel")
-                        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-                        nameLabel.BackgroundTransparency = 1
-                        nameLabel.Text = player.Name
-                        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
-                        nameLabel.TextStrokeTransparency = 0.5
-                        nameLabel.Font = Enum.Font.GothamBold
-                        nameLabel.TextSize = 16
-                        nameLabel.Parent = billboard
-                        
-                        local distLabel = Instance.new("TextLabel")
-                        distLabel.Size = UDim2.new(1, 0, 0.5, 0)
-                        distLabel.Position = UDim2.new(0, 0, 0.5, 0)
-                        distLabel.BackgroundTransparency = 1
-                        distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-                        distLabel.TextStrokeTransparency = 0.5
-                        distLabel.Font = Enum.Font.Gotham
-                        distLabel.TextSize = 14
-                        distLabel.Parent = billboard
-                        
-                        ESPObjects[player] = {billboard = billboard, distLabel = distLabel}
-                    end
-                end
+                createESP(player)
             end
             
-            -- Update distances
-            RunService.Heartbeat:Connect(function()
-                if not ESPEnabled then return end
-                local myChar = LocalPlayer.Character
-                if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                    local myPos = myChar.HumanoidRootPart.Position
-                    for player, data in pairs(ESPObjects) do
-                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            local dist = (player.Character.HumanoidRootPart.Position - myPos).Magnitude
-                            data.distLabel.Text = string.format("%.0f studs", dist)
-                        end
-                    end
+            -- Handle new players
+            Players.PlayerAdded:Connect(function(player)
+                if ESPEnabled then
+                    task.wait(1)
+                    createESP(player)
                 end
             end)
-        else
-            for player, data in pairs(ESPObjects) do
-                if data.billboard then
-                    data.billboard:Destroy()
+            
+            -- Handle player leaving
+            Players.PlayerRemoving:Connect(function(player)
+                if ESPObjects[player] then
+                    local data = ESPObjects[player]
+                    if data.billboard then data.billboard:Destroy() end
+                    if data.box then data.box:Remove() end
+                    if data.boxOutline then data.boxOutline:Remove() end
+                    if data.tracer then data.tracer:Remove() end
+                    ESPObjects[player] = nil
                 end
+            end)
+            
+            -- Update loop
+            ESPUpdateConn = RunService.RenderStepped:Connect(updateESP)
+        else
+            if ESPUpdateConn then
+                ESPUpdateConn:Disconnect()
+                ESPUpdateConn = nil
+            end
+            
+            -- Clean all ESP
+            for player, data in pairs(ESPObjects) do
+                if data.billboard then data.billboard:Destroy() end
+                if data.box then data.box:Remove() end
+                if data.boxOutline then data.boxOutline:Remove() end
+                if data.tracer then data.tracer:Remove() end
             end
             ESPObjects = {}
         end
+    end)
+    
+    -- ESP Options
+    createToggle(VisualsTab, "📦 ESP Box", Color3.fromRGB(150, 200, 255), function(enabled)
+        ESPBoxEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📝 ESP Name", Color3.fromRGB(255, 200, 150), function(enabled)
+        ESPNameEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "❤️ ESP Health", Color3.fromRGB(255, 150, 150), function(enabled)
+        ESPHealthEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📏 ESP Distance", Color3.fromRGB(200, 200, 255), function(enabled)
+        ESPDistanceEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📍 ESP Tracer", Color3.fromRGB(255, 255, 150), function(enabled)
+        ESPTracerEnabled = enabled
     end)
 end
 
