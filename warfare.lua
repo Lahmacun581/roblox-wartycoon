@@ -348,11 +348,12 @@ local function createTab(name, icon)
     return tabContent
 end
 
--- Sekmeleri oluştur
-local MainTab = createTab("Main", "💰")
-local FarmTab = createTab("Farm", "⚡")
-local PlayerTab = createTab("Player", "👤")
-local MiscTab = createTab("Misc", "⚙️")
+-- Sekmeleri oluştur (Yeni Kategori Sistemi)
+local PlayerTab = createTab("Player", "🏃") -- Hareket
+local CombatTab = createTab("Combat", "⚔️") -- Savaş
+local VisualsTab = createTab("Visuals", "👁️") -- Görsel
+local FarmTab = createTab("Farm", "⚡") -- Otomasyon
+local MiscTab = createTab("Misc", "⚙️") -- Diğer
 
 -- İlk sekmeyi aç
 tabs["Main"].button.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
