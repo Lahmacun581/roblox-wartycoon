@@ -77,7 +77,7 @@ MainFrame.Parent = ScreenGui
 -- UI Corner for rounded edges
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
-MainFrame.Parent = MainFrame
+MainCorner.Parent = MainFrame
 
 -- Gradient background
 local Gradient = Instance.new("UIGradient")
@@ -118,7 +118,7 @@ TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "💣 War Tycoon GUI v2.5"  -- emoji eklendi
 TitleLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 TitleLabel.TextSize = 16
-TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
@@ -130,7 +130,7 @@ Subtitle.BackgroundTransparency = 1
 Subtitle.Text = "by Lahmacun581"
 Subtitle.TextColor3 = Color3.fromRGB(150, 150, 150)
 Subtitle.TextSize = 10
-Subtitle.Font = Enum.Font.Gotham
+Subtitle.Font = Enum.Font.SourceSans
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.Parent = TitleBar
 -- Kapat (X) butonu
@@ -190,7 +190,7 @@ local function createTab(name, icon)
     tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
     tabBtn.Text = icon .. " " .. name
     tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    tabBtn.Font = Enum.Font.GothamSemibold
+    tabBtn.Font = Enum.Font.SourceSansBold
     tabBtn.TextSize = 13
     tabBtn.Parent = TabBar
     
