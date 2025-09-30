@@ -591,12 +591,15 @@ end
 -- ===== PLAYER TAB =====
 do
     -- Speed Hack with Slider
+    local speedEnabled = false
     local speedConn
     local currentSpeed = 100
     
-    createToggle(PlayerTab, "🏃 Speed Hack", Color3.fromRGB(100, 150, 255), function(enabled)
+    local speedBtn = createToggle(PlayerTab, "🏃 Speed Hack", Color3.fromRGB(100, 150, 255), function(enabled)
+        speedEnabled = enabled
         if enabled then
             speedConn = RunService.Heartbeat:Connect(function()
+                if not speedEnabled then return end
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("Humanoid") then
                     char.Humanoid.WalkSpeed = currentSpeed
@@ -604,7 +607,10 @@ do
             end)
             getgenv().AdorHUB.Connections.Speed = speedConn
         else
-            if speedConn then speedConn:Disconnect() end
+            if speedConn then 
+                speedConn:Disconnect()
+                speedConn = nil
+            end
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.WalkSpeed = 16
@@ -612,7 +618,7 @@ do
         end
     end)
     
-    createSlider(PlayerTab, "🏃 Speed", 16, 500, 100, function(value)
+    createSlider(PlayerTab, "   Speed Value", 16, 500, 100, function(value)
         currentSpeed = value
     end)
     
@@ -653,31 +659,32 @@ do
     end)
     
     -- Fly with Slider
-    local flying = false
+    local flyEnabled = false
     local flyConn
     local flySpeed = 50
+    local flyBG, flyBV
     
     createToggle(PlayerTab, "✈️ Fly Mode", Color3.fromRGB(100, 200, 255), function(enabled)
-        flying = enabled
+        flyEnabled = enabled
         
         if enabled then
             local char = LocalPlayer.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then return end
             
             local hrp = char.HumanoidRootPart
-            local bg = Instance.new("BodyGyro")
-            bg.P = 9e4
-            bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-            bg.cframe = hrp.CFrame
-            bg.Parent = hrp
+            flyBG = Instance.new("BodyGyro")
+            flyBG.P = 9e4
+            flyBG.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+            flyBG.cframe = hrp.CFrame
+            flyBG.Parent = hrp
             
-            local bv = Instance.new("BodyVelocity")
-            bv.velocity = Vector3.new(0, 0, 0)
-            bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
-            bv.Parent = hrp
+            flyBV = Instance.new("BodyVelocity")
+            flyBV.velocity = Vector3.new(0, 0, 0)
+            flyBV.maxForce = Vector3.new(9e9, 9e9, 9e9)
+            flyBV.Parent = hrp
             
             flyConn = RunService.Heartbeat:Connect(function()
-                if not flying then return end
+                if not flyEnabled then return end
                 
                 local cam = workspace.CurrentCamera
                 local direction = Vector3.new(0, 0, 0)
@@ -701,39 +708,42 @@ do
                     direction = direction - (Vector3.new(0, flySpeed, 0))
                 end
                 
-                bv.velocity = direction
-                bg.cframe = cam.CFrame
+                if flyBV then
+                    flyBV.velocity = direction
+                end
+                if flyBG then
+                    flyBG.cframe = cam.CFrame
+                end
             end)
             
             getgenv().AdorHUB.Connections.Fly = flyConn
         else
-            if flyConn then flyConn:Disconnect() end
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local hrp = char.HumanoidRootPart
-                if hrp:FindFirstChild("BodyGyro") then hrp.BodyGyro:Destroy() end
-                if hrp:FindFirstChild("BodyVelocity") then hrp.BodyVelocity:Destroy() end
+            if flyConn then 
+                flyConn:Disconnect()
+                flyConn = nil
             end
+            if flyBG then flyBG:Destroy() flyBG = nil end
+            if flyBV then flyBV:Destroy() flyBV = nil end
         end
     end)
     
-    createSlider(PlayerTab, "✈️ Fly Speed", 10, 200, 50, function(value)
+    createSlider(PlayerTab, "   Fly Speed", 10, 200, 50, function(value)
         flySpeed = value
     end)
     
     -- Noclip
-    local noclipping = false
+    local noclipEnabled = false
     local noclipConn
     createToggle(PlayerTab, "👻 Noclip", Color3.fromRGB(200, 100, 255), function(enabled)
-        noclipping = enabled
+        noclipEnabled = enabled
         
         if enabled then
             noclipConn = RunService.Stepped:Connect(function()
-                if not noclipping then return end
+                if not noclipEnabled then return end
                 local char = LocalPlayer.Character
                 if char then
                     for _, part in pairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") then
+                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                             part.CanCollide = false
                         end
                     end
@@ -741,11 +751,14 @@ do
             end)
             getgenv().AdorHUB.Connections.Noclip = noclipConn
         else
-            if noclipConn then noclipConn:Disconnect() end
+            if noclipConn then 
+                noclipConn:Disconnect()
+                noclipConn = nil
+            end
             local char = LocalPlayer.Character
             if char then
                 for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                         part.CanCollide = true
                     end
                 end
@@ -754,10 +767,13 @@ do
     end)
     
     -- God Mode (Anti-Damage)
+    local godEnabled = false
     local godConn
     createToggle(PlayerTab, "🛡️ God Mode", Color3.fromRGB(255, 200, 100), function(enabled)
+        godEnabled = enabled
         if enabled then
             godConn = RunService.Heartbeat:Connect(function()
+                if not godEnabled then return end
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("Humanoid") then
                     local hum = char.Humanoid
@@ -768,7 +784,10 @@ do
             end)
             getgenv().AdorHUB.Connections.God = godConn
         else
-            if godConn then godConn:Disconnect() end
+            if godConn then 
+                godConn:Disconnect()
+                godConn = nil
+            end
         end
     end)
     
