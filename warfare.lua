@@ -1133,6 +1133,143 @@ local PlayerContent = PlayerTab
         end
     end)
     
+    -- Fire Rate Toggle
+    local FireRateEnabled = false
+    local FireRateBtn = Instance.new("TextButton")
+    FireRateBtn.Size = UDim2.new(1, -16, 0, 40)
+    FireRateBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 50)
+    FireRateBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    FireRateBtn.Text = "⚡ Fire Rate: OFF"
+    FireRateBtn.Font = Enum.Font.SourceSansBold
+    FireRateBtn.TextSize = 16
+    FireRateBtn.Parent = PlayerContent
+    local FireRateCorner = Instance.new("UICorner")
+    FireRateCorner.CornerRadius = UDim.new(0, 6)
+    FireRateCorner.Parent = FireRateBtn
+    
+    local fireRateConnection
+    local fireRateKeywords = {"firerate", "rpm", "cooldown", "delay", "interval", "speed"}
+    
+    FireRateBtn.MouseButton1Click:Connect(function()
+        FireRateEnabled = not FireRateEnabled
+        FireRateBtn.Text = "⚡ Fire Rate: " .. (FireRateEnabled and "ON" or "OFF")
+        FireRateBtn.BackgroundColor3 = FireRateEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(255, 100, 50)
+        
+        if FireRateEnabled then
+            fireRateConnection = RunService.Heartbeat:Connect(function()
+                if not FireRateEnabled then return end
+                local char = LocalPlayer.Character
+                if not char then return end
+                
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = string.lower(obj.Name)
+                                for _, keyword in ipairs(fireRateKeywords) do
+                                    if string.find(name, keyword) then
+                                        if keyword == "firerate" or keyword == "rpm" or keyword == "speed" then
+                                            obj.Value = 9999 -- Maksimum hız
+                                        elseif keyword == "cooldown" or keyword == "delay" or keyword == "interval" then
+                                            obj.Value = 0 -- Minimum bekleme
+                                        end
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Fire Rate maksimum! Süper hızlı ateş."; Duration = 2})
+            end)
+            print("[FIRE RATE] Enabled")
+        else
+            if fireRateConnection then
+                fireRateConnection:Disconnect()
+                fireRateConnection = nil
+            end
+            print("[FIRE RATE] Disabled")
+        end
+    end)
+    
+    -- Hitbox Expander Toggle
+    local HitboxEnabled = false
+    local HitboxBtn = Instance.new("TextButton")
+    HitboxBtn.Size = UDim2.new(1, -16, 0, 40)
+    HitboxBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 200)
+    HitboxBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    HitboxBtn.Text = "📦 Hitbox Expander: OFF"
+    HitboxBtn.Font = Enum.Font.SourceSansBold
+    HitboxBtn.TextSize = 16
+    HitboxBtn.Parent = PlayerContent
+    local HitboxCorner = Instance.new("UICorner")
+    HitboxCorner.CornerRadius = UDim.new(0, 6)
+    HitboxCorner.Parent = HitboxBtn
+    
+    local hitboxConnection
+    local hitboxSize = 20 -- Varsayılan genişletme
+    
+    HitboxBtn.MouseButton1Click:Connect(function()
+        HitboxEnabled = not HitboxEnabled
+        HitboxBtn.Text = "📦 Hitbox Expander: " .. (HitboxEnabled and "ON" or "OFF")
+        HitboxBtn.BackgroundColor3 = HitboxEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(200, 100, 200)
+        
+        if HitboxEnabled then
+            hitboxConnection = RunService.Heartbeat:Connect(function()
+                if not HitboxEnabled then return end
+                
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local char = player.Character
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        
+                        if hrp then
+                            -- Hitbox'ı genişlet
+                            hrp.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                            hrp.Transparency = 0.8 -- Görünür yap (opsiyonel)
+                            hrp.CanCollide = false
+                            hrp.Massless = true
+                            
+                            -- Tüm body partları da genişlet
+                            for _, part in ipairs(char:GetChildren()) do
+                                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                                    part.CanCollide = false
+                                    part.Massless = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Hitbox genişletildi! Vurmak çok kolay."; Duration = 2})
+            end)
+            print("[HITBOX] Enabled - Size: " .. hitboxSize)
+        else
+            if hitboxConnection then
+                hitboxConnection:Disconnect()
+                hitboxConnection = nil
+            end
+            
+            -- Hitbox'ları normale döndür
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.Size = Vector3.new(2, 2, 1) -- Normal boyut
+                        hrp.Transparency = 1
+                    end
+                end
+            end
+            
+            print("[HITBOX] Disabled")
+        end
+    end)
+    
     -- Silent Aim Toggle
     local SilentAimEnabled = false
     local SilentAimBtn = Instance.new("TextButton")
