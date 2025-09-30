@@ -781,23 +781,23 @@ local PlayerContent = PlayerTab
     NoRecoilCorner.CornerRadius = UDim.new(0, 6)
     NoRecoilCorner.Parent = NoRecoilBtn
     
+    local recoilConnection
     NoRecoilBtn.MouseButton1Click:Connect(function()
         NoRecoilEnabled = not NoRecoilEnabled
         NoRecoilBtn.Text = "🎯 No Recoil: " .. (NoRecoilEnabled and "ON" or "OFF")
         NoRecoilBtn.BackgroundColor3 = NoRecoilEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(150, 100, 200)
         
         if NoRecoilEnabled then
-            -- Recoil değerlerini sıfırla
-            RunService.Heartbeat:Connect(function()
+            recoilConnection = RunService.Heartbeat:Connect(function()
                 if not NoRecoilEnabled then return end
                 local char = LocalPlayer.Character
                 if char then
                     for _, tool in ipairs(char:GetChildren()) do
                         if tool:IsA("Tool") then
                             for _, obj in ipairs(tool:GetDescendants()) do
-                                if obj:IsA("NumberValue") then
+                                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
                                     local name = string.lower(obj.Name)
-                                    if string.find(name, "recoil") or string.find(name, "spread") then
+                                    if string.find(name, "recoil") then
                                         obj.Value = 0
                                     end
                                 end
@@ -806,6 +806,82 @@ local PlayerContent = PlayerTab
                     end
                 end
             end)
+        else
+            if recoilConnection then
+                recoilConnection:Disconnect()
+                recoilConnection = nil
+            end
+        end
+    end)
+    
+    -- No Spread Toggle (Gelişmiş)
+    local NoSpreadEnabled = false
+    local NoSpreadBtn = Instance.new("TextButton")
+    NoSpreadBtn.Size = UDim2.new(1, -16, 0, 40)
+    NoSpreadBtn.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
+    NoSpreadBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    NoSpreadBtn.Text = "🎯 No Spread: OFF"
+    NoSpreadBtn.Font = Enum.Font.SourceSansBold
+    NoSpreadBtn.TextSize = 16
+    NoSpreadBtn.Parent = PlayerContent
+    local NoSpreadCorner = Instance.new("UICorner")
+    NoSpreadCorner.CornerRadius = UDim.new(0, 6)
+    NoSpreadCorner.Parent = NoSpreadBtn
+    
+    local spreadConnection
+    NoSpreadBtn.MouseButton1Click:Connect(function()
+        NoSpreadEnabled = not NoSpreadEnabled
+        NoSpreadBtn.Text = "🎯 No Spread: " .. (NoSpreadEnabled and "ON" or "OFF")
+        NoSpreadBtn.BackgroundColor3 = NoSpreadEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(100, 150, 200)
+        
+        if NoSpreadEnabled then
+            spreadConnection = RunService.Heartbeat:Connect(function()
+                if not NoSpreadEnabled then return end
+                local char = LocalPlayer.Character
+                if char then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            -- Spread değerlerini sıfırla
+                            for _, obj in ipairs(tool:GetDescendants()) do
+                                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                    local name = string.lower(obj.Name)
+                                    if string.find(name, "spread") or string.find(name, "accuracy") or string.find(name, "bloom") then
+                                        if string.find(name, "accuracy") then
+                                            obj.Value = 100 -- Accuracy maksimum
+                                        else
+                                            obj.Value = 0 -- Spread/Bloom minimum
+                                        end
+                                    end
+                                end
+                            end
+                            
+                            -- Configuration klasoründeki değerleri de kontrol et
+                            local config = tool:FindFirstChild("Configuration") or tool:FindFirstChild("Config") or tool:FindFirstChild("Settings")
+                            if config then
+                                for _, obj in ipairs(config:GetChildren()) do
+                                    if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                        local name = string.lower(obj.Name)
+                                        if string.find(name, "spread") or string.find(name, "bloom") then
+                                            obj.Value = 0
+                                        elseif string.find(name, "accuracy") then
+                                            obj.Value = 100
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "No Spread aktif! Mermi dağılımı kaldırıldı."; Duration = 2})
+            end)
+        else
+            if spreadConnection then
+                spreadConnection:Disconnect()
+                spreadConnection = nil
+            end
         end
     end)
     
