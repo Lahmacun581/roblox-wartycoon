@@ -671,6 +671,7 @@ do
                 end
             end)
             getgenv().AdorHUB.Connections.Speed = speedConn
+            print("[AdorHUB] Speed Hack enabled - Speed: " .. currentSpeed)
         else
             if speedConn then 
                 speedConn:Disconnect()
@@ -680,6 +681,7 @@ do
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.WalkSpeed = 16
             end
+            print("[AdorHUB] Speed Hack disabled")
         end
     end)
     
@@ -708,18 +710,26 @@ do
     end)
     
     -- Infinite Jump
+    local infJumpEnabled = false
     local infJumpConn
     createToggle(PlayerTab, "♾️ Infinite Jump", Color3.fromRGB(255, 150, 100), function(enabled)
+        infJumpEnabled = enabled
         if enabled then
             infJumpConn = UserInputService.JumpRequest:Connect(function()
+                if not infJumpEnabled then return end
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("Humanoid") then
                     char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                 end
             end)
             getgenv().AdorHUB.Connections.InfJump = infJumpConn
+            print("[AdorHUB] Infinite Jump enabled")
         else
-            if infJumpConn then infJumpConn:Disconnect() end
+            if infJumpConn then 
+                infJumpConn:Disconnect()
+                infJumpConn = nil
+            end
+            print("[AdorHUB] Infinite Jump disabled")
         end
     end)
     
@@ -815,6 +825,7 @@ do
                 end
             end)
             getgenv().AdorHUB.Connections.Noclip = noclipConn
+            print("[AdorHUB] Noclip enabled")
         else
             if noclipConn then 
                 noclipConn:Disconnect()
@@ -828,6 +839,7 @@ do
                     end
                 end
             end
+            print("[AdorHUB] Noclip disabled")
         end
     end)
     
@@ -848,11 +860,13 @@ do
                 end
             end)
             getgenv().AdorHUB.Connections.God = godConn
+            print("[AdorHUB] God Mode enabled")
         else
             if godConn then 
                 godConn:Disconnect()
                 godConn = nil
             end
+            print("[AdorHUB] God Mode disabled")
         end
     end)
     
