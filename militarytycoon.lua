@@ -218,6 +218,18 @@ local CombatTab = createTab("Combat", "⚔️", Color3.fromRGB(255, 100, 100))
 local PlayerTab = createTab("Player", "🏃", Color3.fromRGB(100, 150, 255))
 local VisualsTab = createTab("Visuals", "👁️", Color3.fromRGB(100, 255, 150))
 
+-- Initialize all tabs (make them visible briefly to render content)
+for _, tab in pairs(tabs) do
+    tab.content.Visible = true
+end
+
+task.wait(0.1)
+
+-- Then hide all except first
+for _, tab in pairs(tabs) do
+    tab.content.Visible = false
+end
+
 -- Open first tab
 tabs["Tycoon"].button.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
 tabs["Tycoon"].icon.TextColor3 = Color3.fromRGB(255, 255, 255)
