@@ -828,6 +828,7 @@ local PlayerContent = PlayerTab
         local mousePos = UserInputService:GetMouseLocation()
         local closestPlayer = nil
         local shortestDistance = math.huge
+        local maxDistance = fovCircle and fovCircle.Radius or 200 -- Fallback
         
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
@@ -837,7 +838,7 @@ local PlayerContent = PlayerTab
                     local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
                     if onScreen then
                         local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                        if distance < fovCircle.Radius and distance < shortestDistance then
+                        if distance < maxDistance and distance < shortestDistance then
                             shortestDistance = distance
                             closestPlayer = player
                         end
@@ -849,18 +850,24 @@ local PlayerContent = PlayerTab
         return closestPlayer
     end
     
-    -- Silent Aim hook
+    -- Silent Aim hook (sadece bir kez)
     local oldNamecall
     oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
         local method = getnamecallmethod()
         local args = {...}
         
-        if SilentAimEnabled and method == "FireServer" and self.Name:find("Fire") or self.Name:find("Shoot") then
+        -- Parantez düzeltildi
+        if SilentAimEnabled and method == "FireServer" and (self.Name:find("Fire") or self.Name:find("Shoot") or self.Name:find("Gun")) then
             local target = getClosestPlayer()
             if target and target.Character then
                 local head = target.Character:FindFirstChild("Head")
                 if head then
-                    args[1] = head.Position
+                    -- İlk argüman pozisyon ise değiştir
+                    if typeof(args[1]) == "Vector3" then
+                        args[1] = head.Position
+                    elseif typeof(args[2]) == "Vector3" then
+                        args[2] = head.Position
+                    end
                 end
             end
         end
@@ -877,6 +884,9 @@ local PlayerContent = PlayerTab
             pcall(function()
                 StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Silent Aim aktif! FOV içindeki hedeflere otomatik nisan alır."; Duration = 3})
             end)
+            print("[SILENT AIM] Enabled - FOV Radius: " .. (fovCircle and fovCircle.Radius or "N/A"))
+        else
+            print("[SILENT AIM] Disabled")
         end
     end)
     
