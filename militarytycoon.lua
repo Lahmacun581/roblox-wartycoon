@@ -566,14 +566,72 @@ do
         end
     end)
     
-    -- Hitbox Expander
+    -- Silent Aim
+    getgenv().MilitaryTycoon.Enabled.SilentAim = false
+    getgenv().MilitaryTycoon.SilentAimFOV = 200
+    
+    createToggle(CombatTab, "🎯 Silent Aim", function(enabled)
+        getgenv().MilitaryTycoon.Enabled.SilentAim = enabled
+    end)
+    
+    -- Silent Aim Hook
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        
+        if getgenv().MilitaryTycoon.Enabled.SilentAim and (method == "FireServer" or method == "InvokeServer") then
+            local camera = workspace.CurrentCamera
+            local myChar = LocalPlayer.Character
+            
+            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local closestPlayer = nil
+                local closestDist = getgenv().MilitaryTycoon.SilentAimFOV
+                
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local head = player.Character:FindFirstChild("Head")
+                        if head then
+                            local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                            if onScreen then
+                                local mousePos = UserInputService:GetMouseLocation()
+                                local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                                if dist < closestDist then
+                                    closestDist = dist
+                                    closestPlayer = player
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                if closestPlayer and closestPlayer.Character then
+                    local head = closestPlayer.Character:FindFirstChild("Head")
+                    if head then
+                        for i, arg in ipairs(args) do
+                            if typeof(arg) == "Vector3" then
+                                args[i] = head.Position
+                            elseif typeof(arg) == "CFrame" then
+                                args[i] = head.CFrame
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        return oldNamecall(self, unpack(args))
+    end)
+    
+    -- Hitbox Expander (Head Only - FPS Optimized)
     getgenv().MilitaryTycoon.Enabled.Hitbox = false
     getgenv().MilitaryTycoon.HitboxSize = 20
     
-    createToggle(CombatTab, "📦 Hitbox Expander", function(enabled)
+    createToggle(CombatTab, "📦 Hitbox Expander (Head)", function(enabled)
         getgenv().MilitaryTycoon.Enabled.Hitbox = enabled
         
         if not enabled then
+            -- Restore normal head size
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
                     local head = player.Character:FindFirstChild("Head")
@@ -581,17 +639,19 @@ do
                         head.Size = Vector3.new(2, 1, 1)
                         head.Transparency = 0
                         head.CanCollide = true
+                        head.Massless = false
                     end
                 end
             end
         end
     end)
     
+    -- Hitbox Loop (Only Head, Every 10 frames for max FPS)
     local hitboxFrameCount = 0
     RunService.Heartbeat:Connect(function()
         if getgenv().MilitaryTycoon.Enabled.Hitbox then
             hitboxFrameCount = hitboxFrameCount + 1
-            if hitboxFrameCount % 5 ~= 0 then return end
+            if hitboxFrameCount % 10 ~= 0 then return end -- Every 10 frames
             
             local size = getgenv().MilitaryTycoon.HitboxSize
             
@@ -599,8 +659,9 @@ do
                 if player ~= LocalPlayer and player.Character then
                     local head = player.Character:FindFirstChild("Head")
                     if head then
+                        -- Only modify head
                         head.Size = Vector3.new(size, size, size)
-                        head.Transparency = 0.7
+                        head.Transparency = 0.5
                         head.CanCollide = false
                         head.Massless = true
                     end
@@ -1105,7 +1166,7 @@ do
     local creditsLabel = Instance.new("TextLabel")
     creditsLabel.Size = UDim2.new(1, -10, 0, 60)
     creditsLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    creditsLabel.Text = "⚔️ Military Tycoon v2.0\nMade by Lahmacun581\n21 Features!"
+    creditsLabel.Text = "⚔️ Military Tycoon v2.0\nMade by Lahmacun581\n22 Features!"
     creditsLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
     creditsLabel.TextSize = 13
     creditsLabel.Font = Enum.Font.Gotham
@@ -1116,5 +1177,5 @@ end
 
 print("[Military Tycoon] All features loaded!")
 print("[Military Tycoon] GUI v2.0 Advanced ready!")
-print("[Military Tycoon] Total: 21 features")
-print("[Military Tycoon] Tycoon: 4 | Combat: 6 | Player: 7 | Visuals: 4")
+print("[Military Tycoon] Total: 22 features")
+print("[Military Tycoon] Tycoon: 4 | Combat: 7 | Player: 7 | Visuals: 4")
