@@ -860,43 +860,52 @@ do
         end
     end)
     
-    -- God Mode Loop (Advanced)
+    -- God Mode Loop (Optimized for FPS)
+    local godFrameCount = 0
     RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.God then
+            godFrameCount = godFrameCount + 1
+            
             local char = LocalPlayer.Character
             if char then
                 local hum = char:FindFirstChild("Humanoid")
                 if hum then
-                    -- 1. Restore health instantly
+                    -- 1. Restore health instantly (every frame - critical)
                     if hum.Health < hum.MaxHealth then
                         hum.Health = hum.MaxHealth
                     end
                     
-                    -- 2. Prevent death states
+                    -- 2. Prevent death states (every frame - critical)
                     if hum.Health <= 0 then
                         hum.Health = hum.MaxHealth
                     end
                     
-                    -- 3. Remove negative effects
-                    for _, effect in pairs(hum:GetChildren()) do
-                        if effect:IsA("NumberValue") and effect.Name == "creator" then
-                            effect:Destroy()
+                    -- 3. Remove negative effects (every 10 frames - not critical)
+                    if godFrameCount % 10 == 0 then
+                        for _, effect in pairs(hum:GetChildren()) do
+                            if effect:IsA("NumberValue") and effect.Name == "creator" then
+                                pcall(function() effect:Destroy() end)
+                            end
                         end
                     end
                 end
                 
-                -- 4. Ensure force field exists
-                if not char:FindFirstChild("AdorHUB_FF") then
-                    local ff = Instance.new("ForceField")
-                    ff.Visible = false
-                    ff.Name = "AdorHUB_FF"
-                    ff.Parent = char
+                -- 4. Ensure force field exists (every 30 frames - not critical)
+                if godFrameCount % 30 == 0 then
+                    if not char:FindFirstChild("AdorHUB_FF") then
+                        local ff = Instance.new("ForceField")
+                        ff.Visible = false
+                        ff.Name = "AdorHUB_FF"
+                        ff.Parent = char
+                    end
                 end
                 
-                -- 5. Remove damage indicators
-                for _, obj in pairs(char:GetDescendants()) do
-                    if obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
-                        obj:Destroy()
+                -- 5. Remove damage indicators (every 20 frames - not critical)
+                if godFrameCount % 20 == 0 then
+                    for _, obj in pairs(char:GetDescendants()) do
+                        if obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                            pcall(function() obj:Destroy() end)
+                        end
                     end
                 end
             end
