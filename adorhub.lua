@@ -931,30 +931,78 @@ do
         end
     end)
     
-    -- Hitbox Expander
-    local hitboxConn
+    -- Hitbox Expander (Real Hitbox)
+    getgenv().AdorHUB.Enabled.Hitbox = false
+    getgenv().AdorHUB.HitboxSize = 20
+    
     createToggle(CombatTab, "📦 Hitbox Expander", Color3.fromRGB(200, 100, 200), function(enabled)
-        if enabled then
-            hitboxConn = RunService.Heartbeat:Connect(function()
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            hrp.Size = Vector3.new(20, 20, 20)
-                            hrp.Transparency = 0.8
-                            hrp.CanCollide = false
+        getgenv().AdorHUB.Enabled.Hitbox = enabled
+        print("[AdorHUB] Hitbox Expander: " .. tostring(enabled))
+        
+        if not enabled then
+            -- Restore normal hitboxes
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    for _, part in pairs(player.Character:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            part.Transparency = part.Name == "HumanoidRootPart" and 1 or 0
+                            part.CanCollide = part.Name ~= "HumanoidRootPart"
+                            
+                            -- Restore original sizes
+                            if part.Name == "HumanoidRootPart" then
+                                part.Size = Vector3.new(2, 2, 1)
+                            elseif part.Name == "Head" then
+                                part.Size = Vector3.new(2, 1, 1)
+                            elseif part.Name == "Torso" or part.Name == "UpperTorso" then
+                                part.Size = Vector3.new(2, 2, 1)
+                            end
                         end
                     end
                 end
-            end)
-        else
-            if hitboxConn then hitboxConn:Disconnect() end
+            end
+        end
+    end)
+    
+    createSlider(CombatTab, "   Hitbox Size", 5, 50, 20, function(value)
+        getgenv().AdorHUB.HitboxSize = value
+        print("[AdorHUB] Hitbox size set to: " .. value)
+    end)
+    
+    -- Hitbox Loop
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AdorHUB.Enabled.Hitbox then
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
-                    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                    local char = player.Character
+                    
+                    -- Expand all body parts
+                    for _, part in pairs(char:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            local size = getgenv().AdorHUB.HitboxSize
+                            
+                            -- Make hitbox huge and transparent
+                            part.Size = Vector3.new(size, size, size)
+                            part.Transparency = 0.7
+                            part.CanCollide = false
+                            part.Massless = true
+                            
+                            -- Keep original material for hit detection
+                            if not part:FindFirstChild("OriginalMaterial") then
+                                local mat = Instance.new("StringValue")
+                                mat.Name = "OriginalMaterial"
+                                mat.Value = tostring(part.Material)
+                                mat.Parent = part
+                            end
+                        end
+                    end
+                    
+                    -- Make sure HumanoidRootPart is the main hitbox
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
                     if hrp then
-                        hrp.Size = Vector3.new(2, 2, 1)
-                        hrp.Transparency = 1
+                        hrp.Size = Vector3.new(getgenv().AdorHUB.HitboxSize, getgenv().AdorHUB.HitboxSize, getgenv().AdorHUB.HitboxSize)
+                        hrp.Transparency = 0.5
+                        hrp.CanCollide = false
+                        hrp.Massless = true
                     end
                 end
             end
