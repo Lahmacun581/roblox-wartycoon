@@ -160,6 +160,75 @@ CloseBtn.MouseLeave:Connect(function()
     CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 end)
 
+-- ===== SÜRÜKLEME SİSTEMİ (HEMEN BURADA) =====
+do
+    local isDragging = false
+    local dragInput
+    local dragStart
+    local startPos
+    
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+    
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    isDragging = false
+                end
+            end)
+        end
+    end)
+    
+    TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and isDragging then
+            updateInput(input)
+        end
+    end)
+end
+
+-- ===== KAPATMA SİSTEMİ (HEMEN BURADA) =====
+CloseBtn.MouseButton1Click:Connect(function()
+    print("[DEBUG] Close button clicked!")
+    
+    -- FOV Circle temizle
+    pcall(function()
+        if getgenv().WarTycoonGUI and getgenv().WarTycoonGUI.FOVCircle then
+            getgenv().WarTycoonGUI.FOVCircle:Remove()
+            getgenv().WarTycoonGUI.FOVCircle = nil
+        end
+    end)
+    
+    -- ScreenGui yok et
+    pcall(function()
+        if ScreenGui then
+            ScreenGui:Destroy()
+        end
+    end)
+    
+    -- Global temizle
+    getgenv().WarTycoonGUI = nil
+    
+    print("[DEBUG] GUI closed successfully!")
+end)
+
 -- Sekme butonları (Tabs)
 local TabBar = Instance.new("Frame")
 TabBar.Name = "TabBar"
@@ -1579,82 +1648,4 @@ local MiscContent = MiscTab
         end
     end)
 
--- GUI'yi sürüklenebilir yapmak (düzeltilmiş v2)
-local guiDragging = false
-local guiDragStart = nil
-local guiStartPos = nil
-
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        guiDragging = true
-        guiDragStart = input.Position
-        guiStartPos = MainFrame.Position
-        
-        local connection
-        connection = input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                guiDragging = false
-                connection:Disconnect()
-            end
-        end)
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if guiDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - guiDragStart
-        MainFrame.Position = UDim2.new(
-            guiStartPos.X.Scale,
-            guiStartPos.X.Offset + delta.X,
-            guiStartPos.Y.Scale,
-            guiStartPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- Kapatma butonuna tıklanınca GUI'yi yok et (düzeltilmiş)
-local function closeGUI()
-    -- FOV Circle temizle
-    if getgenv().WarTycoonGUI and getgenv().WarTycoonGUI.FOVCircle then
-        pcall(function()
-            getgenv().WarTycoonGUI.FOVCircle:Remove()
-        end)
-        getgenv().WarTycoonGUI.FOVCircle = nil
-    end
-    
-    -- ESP temizle
-    if ESPEnabled then
-        for player, _ in pairs(ESPObjects) do
-            pcall(function()
-                if ESPObjects[player] and ESPObjects[player].billboard then
-                    ESPObjects[player].billboard:Destroy()
-                end
-            end)
-        end
-        ESPObjects = {}
-    end
-    
-    -- GUI temizle
-    if ScreenGui and ScreenGui.Parent then
-        pcall(function()
-            ScreenGui:Destroy()
-        end)
-    end
-    
-    -- Global temizle
-    getgenv().WarTycoonGUI = nil
-    
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "GUI kapatıldı"; Duration = 2})
-    end)
-end
-
-CloseBtn.MouseButton1Click:Connect(closeGUI)
-
--- Optional: ESC ile kapatma
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.Delete then -- ESC yerine DELETE (daha güvenli)
-        closeGUI()
-    end
-end)
+-- Sürükleme ve kapatma yukarıda tanımlandı (satır 155-230)
