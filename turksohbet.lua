@@ -351,9 +351,9 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Auto Collect Money
+-- Auto Teleport to Money
 getgenv().TurkSohbet.Enabled.AutoMoney = false
-createToggle("💰 Otomatik Para Toplama", function(enabled)
+createToggle("💰 Paralara Otomatik Işınlan", function(enabled)
     getgenv().TurkSohbet.Enabled.AutoMoney = enabled
 end)
 
@@ -361,18 +361,20 @@ local moneyFrameCount = 0
 RunService.Heartbeat:Connect(function()
     if getgenv().TurkSohbet.Enabled.AutoMoney then
         moneyFrameCount = moneyFrameCount + 1
-        if moneyFrameCount % 5 ~= 0 then return end -- Her 5 frame'de bir (FPS için)
+        if moneyFrameCount % 30 ~= 0 then return end -- Her 30 frame'de bir (0.5 saniye)
         
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
             local hrp = char.HumanoidRootPart
+            local closestMoney = nil
+            local closestDist = math.huge
             
-            -- Workspace'teki para objelerini bul
+            -- En yakın parayı bul
             for _, obj in pairs(workspace:GetChildren()) do
                 if obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart") then
                     local name = string.lower(obj.Name)
                     
-                    -- Sadece para objeleri (karakterleri hariç tut)
+                    -- Sadece para objeleri
                     local isMoney = (string.find(name, "cash") or 
                                     string.find(name, "euro") or 
                                     string.find(name, "money") or 
@@ -397,18 +399,23 @@ RunService.Heartbeat:Connect(function()
                             mainPart = obj
                         end
                         
-                        -- Parayı karaktere getir
+                        -- En yakın parayı bul
                         if mainPart then
-                            pcall(function()
-                                mainPart.CFrame = hrp.CFrame
-                                -- Eğer CanCollide varsa kapat
-                                if mainPart:IsA("BasePart") then
-                                    mainPart.CanCollide = false
-                                end
-                            end)
+                            local dist = (mainPart.Position - hrp.Position).Magnitude
+                            if dist < closestDist then
+                                closestDist = dist
+                                closestMoney = mainPart
+                            end
                         end
                     end
                 end
+            end
+            
+            -- En yakın paraya ışınlan
+            if closestMoney then
+                pcall(function()
+                    hrp.CFrame = closestMoney.CFrame + Vector3.new(0, 3, 0)
+                end)
             end
         end
     end
