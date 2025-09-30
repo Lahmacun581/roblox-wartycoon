@@ -894,7 +894,7 @@ do
         "reserve", "stock", "loaded", "chamber"
     }
     
-    -- Infinite Ammo Loop
+    -- Infinite Ammo Loop (No Reload Required)
     RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.InfAmmo then
             local char = LocalPlayer.Character
@@ -902,6 +902,16 @@ do
                 -- Check equipped tool
                 for _, tool in ipairs(char:GetChildren()) do
                     if tool:IsA("Tool") then
+                        -- Find MaxAmmo first for accurate values
+                        local maxAmmo = 999
+                        local maxObj = tool:FindFirstChild("MaxAmmo") or 
+                                      tool:FindFirstChild("MaxClip") or 
+                                      tool:FindFirstChild("ClipSize") or
+                                      tool:FindFirstChild("MagSize")
+                        if maxObj and (maxObj:IsA("IntValue") or maxObj:IsA("NumberValue")) then
+                            maxAmmo = maxObj.Value
+                        end
+                        
                         -- Search all descendants for ammo values
                         for _, obj in ipairs(tool:GetDescendants()) do
                             if obj:IsA("IntValue") or obj:IsA("NumberValue") then
@@ -910,18 +920,10 @@ do
                                 -- Check all ammo keywords
                                 for _, keyword in ipairs(ammoKeywords) do
                                     if string.find(name, keyword) then
-                                        -- Set to max (999 or MaxAmmo value)
-                                        local maxAmmo = 999
-                                        
-                                        -- Try to find MaxAmmo value
-                                        local maxObj = tool:FindFirstChild("MaxAmmo") or 
-                                                      tool:FindFirstChild("MaxClip") or 
-                                                      tool:FindFirstChild("ClipSize")
-                                        if maxObj and (maxObj:IsA("IntValue") or maxObj:IsA("NumberValue")) then
-                                            maxAmmo = maxObj.Value
+                                        -- Always keep at max (no reload needed)
+                                        if obj.Value < maxAmmo then
+                                            obj.Value = maxAmmo
                                         end
-                                        
-                                        obj.Value = maxAmmo
                                         break
                                     end
                                 end
@@ -929,19 +931,36 @@ do
                         end
                         
                         -- Check config folders
-                        local configFolders = {"Configuration", "Config", "Settings", "Stats", "GunStats", "Ammo"}
+                        local configFolders = {"Configuration", "Config", "Settings", "Stats", "GunStats", "Ammo", "WeaponStats"}
                         for _, folderName in ipairs(configFolders) do
                             local folder = tool:FindFirstChild(folderName)
                             if folder then
-                                for _, obj in ipairs(folder:GetChildren()) do
+                                for _, obj in ipairs(folder:GetDescendants()) do
                                     if obj:IsA("IntValue") or obj:IsA("NumberValue") then
                                         local name = string.lower(obj.Name)
                                         for _, keyword in ipairs(ammoKeywords) do
                                             if string.find(name, keyword) then
-                                                obj.Value = 999
+                                                if obj.Value < maxAmmo then
+                                                    obj.Value = maxAmmo
+                                                end
                                                 break
                                             end
                                         end
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- Also check direct children (some games use this)
+                        for _, obj in ipairs(tool:GetChildren()) do
+                            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                local name = string.lower(obj.Name)
+                                for _, keyword in ipairs(ammoKeywords) do
+                                    if string.find(name, keyword) then
+                                        if obj.Value < maxAmmo then
+                                            obj.Value = maxAmmo
+                                        end
+                                        break
                                     end
                                 end
                             end
@@ -954,12 +973,22 @@ do
                 if backpack then
                     for _, tool in ipairs(backpack:GetChildren()) do
                         if tool:IsA("Tool") then
+                            local maxAmmo = 999
+                            local maxObj = tool:FindFirstChild("MaxAmmo") or 
+                                          tool:FindFirstChild("MaxClip") or 
+                                          tool:FindFirstChild("ClipSize")
+                            if maxObj and (maxObj:IsA("IntValue") or maxObj:IsA("NumberValue")) then
+                                maxAmmo = maxObj.Value
+                            end
+                            
                             for _, obj in ipairs(tool:GetDescendants()) do
                                 if obj:IsA("IntValue") or obj:IsA("NumberValue") then
                                     local name = string.lower(obj.Name)
                                     for _, keyword in ipairs(ammoKeywords) do
                                         if string.find(name, keyword) then
-                                            obj.Value = 999
+                                            if obj.Value < maxAmmo then
+                                                obj.Value = maxAmmo
+                                            end
                                             break
                                         end
                                     end
