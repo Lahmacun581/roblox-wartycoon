@@ -984,6 +984,98 @@ do
         end
     end)
     
+    -- No Spread
+    local spreadConn
+    createToggle(CombatTab, "💥 No Spread", Color3.fromRGB(255, 150, 100), function(enabled)
+        if enabled then
+            spreadConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            for _, obj in ipairs(tool:GetDescendants()) do
+                                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                    local name = string.lower(obj.Name)
+                                    if string.find(name, "spread") or string.find(name, "accuracy") or string.find(name, "bloom") then
+                                        obj.Value = 0
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if spreadConn then spreadConn:Disconnect() end
+        end
+    end)
+    
+    -- Silent Aim
+    getgenv().AdorHUB.Enabled.SilentAim = false
+    getgenv().AdorHUB.SilentAimFOV = 200
+    
+    createToggle(CombatTab, "🎯 Silent Aim", Color3.fromRGB(255, 100, 150), function(enabled)
+        getgenv().AdorHUB.Enabled.SilentAim = enabled
+        print("[AdorHUB] Silent Aim: " .. tostring(enabled))
+    end)
+    
+    createSlider(CombatTab, "   Silent Aim FOV", 50, 500, 200, function(value)
+        getgenv().AdorHUB.SilentAimFOV = value
+    end)
+    
+    -- Silent Aim Hook
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        
+        if getgenv().AdorHUB.Enabled.SilentAim and (method == "FireServer" or method == "InvokeServer") then
+            -- Find closest player
+            local camera = workspace.CurrentCamera
+            local myChar = LocalPlayer.Character
+            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local myPos = myChar.HumanoidRootPart.Position
+                local closestPlayer = nil
+                local closestDist = getgenv().AdorHUB.SilentAimFOV
+                
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                        local head = player.Character:FindFirstChild("Head")
+                        if hrp and head then
+                            local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                            if onScreen then
+                                local mousePos = UserInputService:GetMouseLocation()
+                                local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                                if dist < closestDist then
+                                    closestDist = dist
+                                    closestPlayer = player
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Redirect to closest player's head
+                if closestPlayer and closestPlayer.Character then
+                    local head = closestPlayer.Character:FindFirstChild("Head")
+                    if head then
+                        -- Modify args to target head
+                        for i, arg in ipairs(args) do
+                            if typeof(arg) == "Vector3" then
+                                args[i] = head.Position
+                            elseif typeof(arg) == "CFrame" then
+                                args[i] = head.CFrame
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        return oldNamecall(self, unpack(args))
+    end)
+    
     -- Hitbox Expander (Real Hitbox)
     getgenv().AdorHUB.Enabled.Hitbox = false
     getgenv().AdorHUB.HitboxSize = 20
@@ -1393,6 +1485,62 @@ do
     
     createToggle(VisualsTab, "📍 ESP Tracer", Color3.fromRGB(255, 255, 150), function(enabled)
         ESPTracerEnabled = enabled
+    end)
+    
+    -- Chams (Wallhack)
+    getgenv().AdorHUB.Enabled.Chams = false
+    
+    createToggle(VisualsTab, "🌈 Chams", Color3.fromRGB(200, 100, 255), function(enabled)
+        getgenv().AdorHUB.Enabled.Chams = enabled
+        print("[AdorHUB] Chams: " .. tostring(enabled))
+        
+        if not enabled then
+            -- Remove all chams
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    for _, part in pairs(player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") and part:FindFirstChild("AdorHUB_Cham") then
+                            part.AdorHUB_Cham:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- Chams Loop
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AdorHUB.Enabled.Chams then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    for _, part in pairs(player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                            if not part:FindFirstChild("AdorHUB_Cham") then
+                                local highlight = Instance.new("SurfaceGui")
+                                highlight.Name = "AdorHUB_Cham"
+                                highlight.Face = Enum.NormalId.Front
+                                highlight.AlwaysOnTop = true
+                                highlight.Parent = part
+                                
+                                local frame = Instance.new("Frame")
+                                frame.Size = UDim2.new(1, 0, 1, 0)
+                                frame.BackgroundColor3 = Color3.fromRGB(255, 0, 255)
+                                frame.BackgroundTransparency = 0.5
+                                frame.BorderSizePixel = 0
+                                frame.Parent = highlight
+                                
+                                -- Add to all faces
+                                for _, face in pairs(Enum.NormalId:GetEnumItems()) do
+                                    local sg = highlight:Clone()
+                                    sg.Face = face
+                                    sg.Parent = part
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end)
 end
 
