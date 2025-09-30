@@ -450,6 +450,14 @@ local function createButton(parent, text, color, callback)
         btn.MouseButton1Click:Connect(callback)
     end
     
+    -- Auto-update canvas size
+    task.spawn(function()
+        task.wait(0.1)
+        if parent:IsA("ScrollingFrame") then
+            parent.CanvasSize = UDim2.new(0, 0, 0, parent.UIListLayout.AbsoluteContentSize.Y + 20)
+        end
+    end)
+    
     return btn
 end
 
@@ -580,11 +588,21 @@ local function createSlider(parent, text, min, max, default, callback)
         end
     end)
     
+    -- Auto-update canvas size
+    task.spawn(function()
+        task.wait(0.1)
+        if parent:IsA("ScrollingFrame") then
+            parent.CanvasSize = UDim2.new(0, 0, 0, parent.UIListLayout.AbsoluteContentSize.Y + 20)
+        end
+    end)
+    
     return container, function() return value end, function(newValue)
         value = math.clamp(newValue, min, max)
         local relativePos = (value - min) / (max - min)
         sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
-        label.Text = text .. ": " .. value
+        if label then
+            label.Text = text .. ": " .. value
+        end
     end
 end
 
