@@ -169,40 +169,113 @@ local Content = Instance.new("Frame")
     CollectorCorner.CornerRadius = UDim.new(0, 6)
     CollectorCorner.Parent = CollectorBtn
     
-    -- Collector bulucu ve manipulator
+    -- Gelişmiş Collector bulucu ve manipulator
     local function findAndModifyCollectors()
         local found = 0
+        local results = {}
         local workspace = game:GetService("Workspace")
         
-        -- Workspace'deki tüm nesneleri tara
+        -- 1. Tüm NumberValue ve IntValue'ları tara (geniş tarama)
         for _, obj in ipairs(workspace:GetDescendants()) do
-            -- "Collector", "Dispenser", "Cash" gibi isimler ara
+            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                local name = string.lower(obj.Name)
+                local parentName = obj.Parent and string.lower(obj.Parent.Name) or ""
+                
+                -- Para ile ilgili anahtar kelimeler
+                local keywords = {"cash", "money", "value", "amount", "collect", "currency", "coin", "dollar"}
+                local isMatch = false
+                
+                for _, kw in ipairs(keywords) do
+                    if string.find(name, kw) or string.find(parentName, kw) then
+                        isMatch = true
+                        break
+                    end
+                end
+                
+                if isMatch and obj.Value >= 0 then
+                    local oldValue = obj.Value
+                    obj.Value = obj.Value + 100000
+                    found = found + 1
+                    local path = obj:GetFullName()
+                    table.insert(results, string.format("%s: %d -> %d", path, oldValue, obj.Value))
+                    print("[Collector] " .. path .. ": " .. oldValue .. " -> " .. obj.Value)
+                end
+            end
+        end
+        
+        -- 2. Player'a ait Tycoon/Base ara
+        local playerName = LocalPlayer.Name
+        for _, obj in ipairs(workspace:GetChildren()) do
             local name = string.lower(obj.Name)
-            if string.find(name, "collect") or string.find(name, "dispens") or string.find(name, "cash") then
-                -- Value, Amount, Money gibi NumberValue'lar ara
+            if string.find(name, "tycoon") or string.find(name, "base") or string.find(name, string.lower(playerName)) then
+                -- Bu objenin içindeki tüm value'ları tara
                 for _, child in ipairs(obj:GetDescendants()) do
-                    if child:IsA("NumberValue") or child:IsA("IntValue") then
-                        local childName = string.lower(child.Name)
-                        if string.find(childName, "value") or string.find(childName, "amount") or string.find(childName, "money") or string.find(childName, "cash") then
-                            -- Değeri artır
-                            local oldValue = child.Value
-                            child.Value = child.Value + 100000
-                            found = found + 1
-                            print(string.format("[Collector] %s.%s: %d -> %d", obj.Name, child.Name, oldValue, child.Value))
-                        end
+                    if (child:IsA("NumberValue") or child:IsA("IntValue")) and child.Value >= 0 then
+                        local oldValue = child.Value
+                        child.Value = child.Value + 100000
+                        found = found + 1
+                        table.insert(results, string.format("%s: %d -> %d", child:GetFullName(), oldValue, child.Value))
                     end
                 end
             end
         end
         
-        local msg = found > 0 and ("Bulundu: " .. found .. " collector") or "Collector bulunamadı"
-        pcall(function()
-            StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = msg; Duration = 2})
-        end)
-        ScanResult.Text = msg .. "\n+$100000 eklendi"
+        -- Sonuçları göster
+        if found > 0 then
+            local msg = "Bulundu: " .. found .. " value"
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = msg; Duration = 2})
+            end)
+            ScanResult.Text = msg .. "\n" .. table.concat(results, "\n"):sub(1, 200)
+        else
+            local msg = "Hiçbir value bulunamadı!\nExplorer'da manuel kontrol et"
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "WarTycoon"; Text = "Value bulunamadı"; Duration = 2})
+            end)
+            ScanResult.Text = msg
+        end
     end
     
     CollectorBtn.MouseButton1Click:Connect(findAndModifyCollectors)
+    
+    -- Debug: Tüm Workspace objeleri listele
+    local ExplorerBtn = Instance.new("TextButton")
+    ExplorerBtn.Size = UDim2.new(0, 140, 0, 28)
+    ExplorerBtn.Position = UDim2.new(0, 330, 0, 10)
+    ExplorerBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
+    ExplorerBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    ExplorerBtn.Text = "List All Values"
+    ExplorerBtn.Font = Enum.Font.SourceSansBold
+    ExplorerBtn.TextSize = 14
+    ExplorerBtn.Parent = Content
+    
+    local ExplorerCorner = Instance.new("UICorner")
+    ExplorerCorner.CornerRadius = UDim.new(0, 6)
+    ExplorerCorner.Parent = ExplorerBtn
+    
+    local function listAllValues()
+        local values = {}
+        local workspace = game:GetService("Workspace")
+        
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                table.insert(values, string.format("%s = %d", obj:GetFullName(), obj.Value))
+            end
+        end
+        
+        if #values > 0 then
+            print("=== TÜM VALUES ===")
+            for i, v in ipairs(values) do
+                print(i .. ". " .. v)
+                if i >= 50 then break end -- İlk 50 tane
+            end
+            ScanResult.Text = "Console'da " .. #values .. " value listelendi\n(F9 aç ve kontrol et)"
+        else
+            ScanResult.Text = "Hiçbir value bulunamadı"
+        end
+    end
+    
+    ExplorerBtn.MouseButton1Click:Connect(listAllValues)
     
     -- AddMoney RemoteEvent adı ayarlanabilir
     local CurrentAddMoneyName = "AddMoney"
