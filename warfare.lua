@@ -460,6 +460,79 @@ local function createSlider(parent, text, min, max, default, callback)
     return container
 end
 
+-- ===== TYCOON TAB =====
+do
+    -- Auto Collect (Near only, no TP/Bring)
+    getgenv().WarfareTycoon.Enabled.AutoCollect = false
+    createToggle(TycoonTab, "💰 Auto Collect Cash (Near)", function(enabled)
+        getgenv().WarfareTycoon.Enabled.AutoCollect = enabled
+    end)
+
+    -- Auto Claim/Upgrade (Near only)
+    getgenv().WarfareTycoon.Enabled.AutoClaim = false
+    createToggle(TycoonTab, "🏗️ Auto Claim / Upgrade (Near)", function(enabled)
+        getgenv().WarfareTycoon.Enabled.AutoClaim = enabled
+    end)
+
+    local function isNear(pos, maxDist)
+        local char = LocalPlayer.Character
+        if not (char and char:FindFirstChild("HumanoidRootPart")) then return false end
+        return (char.HumanoidRootPart.Position - pos).Magnitude <= maxDist
+    end
+
+    local tickCount = 0
+    RunService.Heartbeat:Connect(function()
+        tickCount += 1
+        if tickCount % 6 ~= 0 then return end -- ~10x/sec
+
+        -- Auto Collect
+        if getgenv().WarfareTycoon.Enabled.AutoCollect then
+            pcall(function()
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("ProximityPrompt") then
+                        local lname = string.lower(obj.Name)
+                        if string.find(lname, "cash") or string.find(lname, "collect") or string.find(lname, "money") then
+                            if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 25) then
+                                pcall(function() fireproximityprompt(obj) end)
+                            end
+                        end
+                    elseif obj:IsA("ClickDetector") then
+                        local lname = string.lower(obj.Name)
+                        if string.find(lname, "cash") or string.find(lname, "collect") or string.find(lname, "money") then
+                            if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 20) then
+                                pcall(function() fireclickdetector(obj) end)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+
+        -- Auto Claim/Upgrade
+        if getgenv().WarfareTycoon.Enabled.AutoClaim then
+            pcall(function()
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("ProximityPrompt") then
+                        local lname = string.lower(obj.Name)
+                        if string.find(lname, "buy") or string.find(lname, "upgrade") or string.find(lname, "purchase") or string.find(lname, "claim") then
+                            if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 22) then
+                                pcall(function() fireproximityprompt(obj) end)
+                            end
+                        end
+                    elseif obj:IsA("ClickDetector") then
+                        local lname = string.lower(obj.Name)
+                        if string.find(lname, "buy") or string.find(lname, "upgrade") or string.find(lname, "purchase") or string.find(lname, "claim") then
+                            if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 18) then
+                                pcall(function() fireclickdetector(obj) end)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
 local function createDropdown(parent, text, options, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, -10, 0, 45)
@@ -590,6 +663,116 @@ end
 
 print("[Warfare Tycoon] Combat features loaded!")
 print("[Warfare Tycoon] Features: No Spread, Hitbox Expander")
+
+-- Extend Combat: Infinite Ammo, Rapid Fire, Infinite Range, Silent Aim
+do
+    -- Infinite Ammo
+    getgenv().WarfareTycoon.Enabled.InfiniteAmmo = false
+    createToggle(CombatTab, "🔫 Infinite Ammo", function(enabled)
+        getgenv().WarfareTycoon.Enabled.InfiniteAmmo = enabled
+    end)
+
+    -- Rapid Fire
+    getgenv().WarfareTycoon.Enabled.RapidFire = false
+    createToggle(CombatTab, "🔥 Rapid Fire", function(enabled)
+        getgenv().WarfareTycoon.Enabled.RapidFire = enabled
+    end)
+
+    -- Infinite Range
+    getgenv().WarfareTycoon.Enabled.InfiniteRange = false
+    createToggle(CombatTab, "🎯 Infinite Range", function(enabled)
+        getgenv().WarfareTycoon.Enabled.InfiniteRange = enabled
+    end)
+
+    -- Apply weapon edits each frame (throttled)
+    local weaponTick = 0
+    RunService.Heartbeat:Connect(function()
+        weaponTick += 1
+        if weaponTick % 5 ~= 0 then return end
+
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        for _, tool in ipairs(char:GetChildren()) do
+            if not tool:IsA("Tool") then continue end
+            for _, obj in ipairs(tool:GetDescendants()) do
+                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                    local n = string.lower(obj.Name)
+                    -- Infinite Ammo
+                    if getgenv().WarfareTycoon.Enabled.InfiniteAmmo then
+                        if string.find(n, "ammo") or string.find(n, "mag") or string.find(n, "clip") then
+                            obj.Value = 999999
+                        end
+                    end
+                    -- Rapid Fire
+                    if getgenv().WarfareTycoon.Enabled.RapidFire then
+                        if string.find(n, "firerate") or string.find(n, "fire_rate") or string.find(n, "cooldown") or string.find(n, "delay") then
+                            obj.Value = 0
+                        end
+                    end
+                    -- Infinite Range
+                    if getgenv().WarfareTycoon.Enabled.InfiniteRange then
+                        if string.find(n, "range") or string.find(n, "distance") then
+                            obj.Value = 999999
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Silent Aim
+    getgenv().WarfareTycoon.Enabled.SilentAim = false
+    getgenv().WarfareTycoon.SilentAimFOV = 200
+    createToggle(CombatTab, "🎪 Silent Aim", function(enabled)
+        getgenv().WarfareTycoon.Enabled.SilentAim = enabled
+    end)
+
+    if not getgenv().WarfareTycoon._SilentAimHooked then
+        getgenv().WarfareTycoon._SilentAimHooked = true
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod and getnamecallmethod() or ""
+
+            local function getClosestPlayer()
+                local cam = workspace.CurrentCamera
+                local closest, bestDist = nil, getgenv().WarfareTycoon.SilentAimFOV
+                local mousePos = UserInputService:GetMouseLocation()
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+                        local head = plr.Character.Head
+                        local sp, onScreen = cam:WorldToViewportPoint(head.Position)
+                        if onScreen then
+                            local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+                            if d < bestDist then
+                                bestDist = d
+                                closest = head
+                            end
+                        end
+                    end
+                end
+                return closest
+            end
+
+            if getgenv().WarfareTycoon.Enabled.SilentAim and (method == "FireServer" or method == "InvokeServer") then
+                local target = getClosestPlayer()
+                if target then
+                    for i, a in ipairs(args) do
+                        if typeof(a) == "Vector3" then
+                            args[i] = target.Position
+                        elseif typeof(a) == "CFrame" then
+                            args[i] = target.CFrame
+                        end
+                    end
+                end
+                return oldNamecall(self, unpack(args))
+            end
+
+            return oldNamecall(self, ...)
+        end)
+    end
+end
 
 -- ===== VISUALS TAB =====
 do
