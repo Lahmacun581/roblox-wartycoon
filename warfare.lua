@@ -782,6 +782,12 @@ do
         getgenv().WarfareTycoon.Enabled.RapidFire = enabled
     end)
 
+    -- Fast Reload
+    getgenv().WarfareTycoon.Enabled.FastReload = false
+    createToggle(CombatTab, "⚡ Fast Reload", function(enabled)
+        getgenv().WarfareTycoon.Enabled.FastReload = enabled
+    end)
+
     -- Infinite Range
     getgenv().WarfareTycoon.Enabled.InfiniteRange = false
     createToggle(CombatTab, "🎯 Infinite Range", function(enabled)
@@ -814,6 +820,12 @@ do
                             obj.Value = 0
                         end
                     end
+                    -- Fast Reload: minimize any reload timers
+                    if getgenv().WarfareTycoon.Enabled.FastReload then
+                        if string.find(n, "reload") or string.find(n, "eject") or string.find(n, "pump") then
+                            obj.Value = 0
+                        end
+                    end
                     -- Infinite Range
                     if getgenv().WarfareTycoon.Enabled.InfiniteRange then
                         if string.find(n, "range") or string.find(n, "distance") then
@@ -822,6 +834,24 @@ do
                     end
                 end
             end
+            -- Attributes support (FastReload + others)
+            pcall(function()
+                local attrs = tool:GetAttributes()
+                for k, v in pairs(attrs) do
+                    local lk = string.lower(k)
+                    if type(v) == "number" then
+                        if getgenv().WarfareTycoon.Enabled.RapidFire and (lk:find("cooldown") or lk:find("delay") or lk:find("firerate") or lk:find("fire_rate")) then
+                            tool:SetAttribute(k, 0)
+                        end
+                        if getgenv().WarfareTycoon.Enabled.FastReload and (lk:find("reload") or lk:find("eject") or lk:find("pump")) then
+                            tool:SetAttribute(k, 0)
+                        end
+                        if getgenv().WarfareTycoon.Enabled.InfiniteRange and (lk:find("range") or lk:find("distance")) then
+                            tool:SetAttribute(k, 999999)
+                        end
+                    end
+                end
+            end)
         end
     end)
 
@@ -924,43 +954,57 @@ do
         end
     end
     
-    -- Triggerbot
+    -- Triggerbot (improved)
     getgenv().WarfareTycoon.Enabled.Triggerbot = false
+    getgenv().WarfareTycoon.TriggerbotCooldown = 0.08
     createToggle(CombatTab, "🧠 Triggerbot", function(enabled)
         getgenv().WarfareTycoon.Enabled.Triggerbot = enabled
     end)
 
     local mouse = LocalPlayer:GetMouse()
     local lastFire = 0
+    local rcParams = RaycastParams.new()
+    rcParams.FilterType = Enum.RaycastFilterType.Blacklist
     RunService.RenderStepped:Connect(function()
         if not getgenv().WarfareTycoon.Enabled.Triggerbot then return end
         local cam = workspace.CurrentCamera
-        if not cam then return end
-        -- Raycast towards mouse
-        local origin = cam.CFrame.Position
-        local dir = (mouse.Hit and (mouse.Hit.p - origin).Unit or cam.CFrame.LookVector) * 1000
-        local params = RaycastParams.new()
-        params.FilterDescendantsInstances = {LocalPlayer.Character}
-        params.FilterType = Enum.RaycastFilterType.Blacklist
-        local result = workspace:Raycast(origin, dir, params)
-        if result and result.Instance then
-            local inst = result.Instance
-            local model = inst:FindFirstAncestorOfClass("Model")
-            if model and model ~= LocalPlayer.Character then
-                local hum = model:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health > 0 then
-                    local t = tick()
-                    if t - lastFire > 0.12 then
-                        lastFire = t
-                        -- Activate current tool if any
-                        local char = LocalPlayer.Character
-                        if char then
-                            for _, tool in ipairs(char:GetChildren()) do
-                                if tool:IsA("Tool") then
-                                    pcall(function() tool:Activate() end)
-                                end
-                            end
-                        end
+        local char = LocalPlayer.Character
+        if not cam or not char then return end
+        rcParams.FilterDescendantsInstances = {char}
+
+        -- Prefer Mouse.Target if available and valid
+        local targetInstance = mouse.Target
+        local model, hum
+        if targetInstance then
+            model = targetInstance:FindFirstAncestorOfClass("Model")
+            if model and model ~= char then
+                hum = model:FindFirstChildOfClass("Humanoid")
+            end
+        end
+        -- Fallback to raycast from camera to mouse
+        if not hum then
+            local origin = cam.CFrame.Position
+            local dir = (mouse.Hit and (mouse.Hit.p - origin).Unit or cam.CFrame.LookVector) * 1000
+            local result = workspace:Raycast(origin, dir, rcParams)
+            if result and result.Instance then
+                model = result.Instance:FindFirstAncestorOfClass("Model")
+                if model and model ~= char then
+                    hum = model:FindFirstChildOfClass("Humanoid")
+                end
+            end
+        end
+
+        if hum and hum.Health > 0 then
+            -- Avoid friendly fire if team-based
+            local owner = Players:GetPlayerFromCharacter(model)
+            if owner and LocalPlayer.Team ~= nil and owner.Team == LocalPlayer.Team then return end
+
+            local t = tick()
+            if t - lastFire >= getgenv().WarfareTycoon.TriggerbotCooldown then
+                lastFire = t
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        pcall(function() tool:Activate() end)
                     end
                 end
             end
