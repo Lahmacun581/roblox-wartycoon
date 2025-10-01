@@ -591,6 +591,233 @@ end
 print("[Warfare Tycoon] Combat features loaded!")
 print("[Warfare Tycoon] Features: No Spread, Hitbox Expander")
 
+-- ===== VISUALS TAB =====
+do
+    -- ESP System (Advanced)
+    local ESPEnabled = false
+    local ESPBoxEnabled = true
+    local ESPNameEnabled = true
+    local ESPHealthEnabled = true
+    local ESPDistanceEnabled = true
+    
+    createToggle(VisualsTab, "👁️ ESP Master", function(enabled)
+        ESPEnabled = enabled
+        
+        if not enabled then
+            for player, data in pairs(getgenv().WarfareTycoon.ESPObjects) do
+                if data.billboard then data.billboard:Destroy() end
+                if data.box then data.box:Remove() end
+                if data.boxOutline then data.boxOutline:Remove() end
+            end
+            getgenv().WarfareTycoon.ESPObjects = {}
+        end
+    end)
+    
+    createToggle(VisualsTab, "📦 ESP Box", function(enabled)
+        ESPBoxEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📝 ESP Name", function(enabled)
+        ESPNameEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "❤️ ESP Health", function(enabled)
+        ESPHealthEnabled = enabled
+    end)
+    
+    createToggle(VisualsTab, "📏 ESP Distance", function(enabled)
+        ESPDistanceEnabled = enabled
+    end)
+    
+    local function createESP(player)
+        if player == LocalPlayer then return end
+        if getgenv().WarfareTycoon.ESPObjects[player] then return end
+        
+        local espData = {}
+        
+        -- Billboard (Name, Health, Distance)
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESP"
+        billboard.AlwaysOnTop = true
+        billboard.Size = UDim2.new(0, 100, 0, 80)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.33, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = player.Name
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextSize = 14
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextStrokeTransparency = 0
+        nameLabel.Parent = billboard
+        
+        local healthLabel = Instance.new("TextLabel")
+        healthLabel.Size = UDim2.new(1, 0, 0.33, 0)
+        healthLabel.Position = UDim2.new(0, 0, 0.33, 0)
+        healthLabel.BackgroundTransparency = 1
+        healthLabel.Text = "100 HP"
+        healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        healthLabel.TextSize = 12
+        healthLabel.Font = Enum.Font.Gotham
+        healthLabel.TextStrokeTransparency = 0
+        healthLabel.Parent = billboard
+        
+        local distLabel = Instance.new("TextLabel")
+        distLabel.Size = UDim2.new(1, 0, 0.33, 0)
+        distLabel.Position = UDim2.new(0, 0, 0.66, 0)
+        distLabel.BackgroundTransparency = 1
+        distLabel.Text = "0 studs"
+        distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        distLabel.TextSize = 12
+        distLabel.Font = Enum.Font.Gotham
+        distLabel.TextStrokeTransparency = 0
+        distLabel.Parent = billboard
+        
+        -- Box ESP (Drawing API)
+        if Drawing then
+            espData.boxOutline = Drawing.new("Square")
+            espData.boxOutline.Visible = false
+            espData.boxOutline.Color = Color3.new(0, 0, 0)
+            espData.boxOutline.Thickness = 3
+            espData.boxOutline.Filled = false
+            
+            espData.box = Drawing.new("Square")
+            espData.box.Visible = false
+            espData.box.Color = Color3.new(1, 0, 0)
+            espData.box.Thickness = 1
+            espData.box.Filled = false
+        end
+        
+        espData.billboard = billboard
+        espData.nameLabel = nameLabel
+        espData.healthLabel = healthLabel
+        espData.distLabel = distLabel
+        
+        getgenv().WarfareTycoon.ESPObjects[player] = espData
+        
+        local function updateESP()
+            if not ESPEnabled then return end
+            
+            local char = player.Character
+            local myChar = LocalPlayer.Character
+            
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local hrp = char.HumanoidRootPart
+                local hum = char.Humanoid
+                
+                -- Billboard
+                billboard.Adornee = hrp
+                billboard.Parent = hrp
+                
+                -- Distance
+                local dist = (hrp.Position - myChar.HumanoidRootPart.Position).Magnitude
+                if ESPDistanceEnabled then
+                    distLabel.Text = math.floor(dist) .. " studs"
+                    distLabel.Visible = true
+                else
+                    distLabel.Visible = false
+                end
+                
+                -- Name
+                nameLabel.Visible = ESPNameEnabled
+                
+                -- Health
+                if ESPHealthEnabled then
+                    local health = math.floor(hum.Health)
+                    local maxHealth = math.floor(hum.MaxHealth)
+                    healthLabel.Text = health .. " HP"
+                    
+                    -- Color based on health
+                    local healthPercent = health / maxHealth
+                    if healthPercent > 0.5 then
+                        healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                    elseif healthPercent > 0.25 then
+                        healthLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+                    else
+                        healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+                    end
+                    healthLabel.Visible = true
+                else
+                    healthLabel.Visible = false
+                end
+                
+                -- Box
+                if Drawing then
+                    local camera = workspace.CurrentCamera
+                    local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                    
+                    if onScreen then
+                        local headPos = camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 3, 0))
+                        local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                        
+                        local height = math.abs(headPos.Y - legPos.Y)
+                        local width = height / 2
+                        
+                        if ESPBoxEnabled and espData.box then
+                            espData.box.Size = Vector2.new(width, height)
+                            espData.box.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
+                            espData.box.Visible = true
+                            
+                            espData.boxOutline.Size = Vector2.new(width, height)
+                            espData.boxOutline.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
+                            espData.boxOutline.Visible = true
+                        else
+                            if espData.box then espData.box.Visible = false end
+                            if espData.boxOutline then espData.boxOutline.Visible = false end
+                        end
+                    else
+                        if espData.box then espData.box.Visible = false end
+                        if espData.boxOutline then espData.boxOutline.Visible = false end
+                    end
+                end
+            else
+                billboard.Parent = nil
+                if espData.box then espData.box.Visible = false end
+                if espData.boxOutline then espData.boxOutline.Visible = false end
+            end
+        end
+        
+        RunService.RenderStepped:Connect(updateESP)
+    end
+    
+    -- Create ESP for all players
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            task.spawn(function()
+                createESP(player)
+            end)
+        end
+    end
+    
+    -- Handle new players
+    Players.PlayerAdded:Connect(function(player)
+        if ESPEnabled then
+            task.wait(1)
+            createESP(player)
+        end
+    end)
+    
+    -- Handle player leaving
+    Players.PlayerRemoving:Connect(function(player)
+        if getgenv().WarfareTycoon.ESPObjects[player] then
+            if getgenv().WarfareTycoon.ESPObjects[player].billboard then
+                getgenv().WarfareTycoon.ESPObjects[player].billboard:Destroy()
+            end
+            if getgenv().WarfareTycoon.ESPObjects[player].box then
+                getgenv().WarfareTycoon.ESPObjects[player].box:Remove()
+            end
+            if getgenv().WarfareTycoon.ESPObjects[player].boxOutline then
+                getgenv().WarfareTycoon.ESPObjects[player].boxOutline:Remove()
+            end
+            getgenv().WarfareTycoon.ESPObjects[player] = nil
+        end
+    end)
+end
+
+print("[Warfare Tycoon] Visual features loaded!")
+print("[Warfare Tycoon] Features: ESP (Box, Name, Health, Distance)")
+
 -- Minimize/Maximize functionality
 local isMinimized = false
 
