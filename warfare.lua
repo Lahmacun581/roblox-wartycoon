@@ -35,6 +35,37 @@ local function cleanup()
         end)
         getgenv().WarfareTycoon.ScreenGui = nil
     end
+
+-- ===== MISC TAB =====
+do
+    -- Remote Logger Toggle (F9 console)
+    getgenv().WarfareTycoon.Enabled.RemoteLogger = false
+    createToggle(MiscTab, "🛰️ Live Remote Logger (F9)", function(enabled)
+        getgenv().WarfareTycoon.Enabled.RemoteLogger = enabled
+        if enabled then
+            print("[Warfare Tycoon] Live Remote Logger: ON")
+        else
+            print("[Warfare Tycoon] Live Remote Logger: OFF")
+        end
+    end)
+
+    -- One-time scanner button
+    createButton(MiscTab, "🔎 Scan Remotes (prints to F9)", function()
+        local found = 0
+        local function scan(container)
+            for _, d in ipairs(container:GetDescendants()) do
+                if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("BindableEvent") or d:IsA("BindableFunction") then
+                    found += 1
+                    print(string.format("[SCAN] %s (%s)", d:GetFullName(), d.ClassName))
+                end
+            end
+        end
+        print("[SCAN] Scanning ReplicatedStorage and Workspace for remotes...")
+        pcall(function() scan(game:GetService("ReplicatedStorage")) end)
+        pcall(function() scan(workspace) end)
+        print("[SCAN] Done. Found " .. tostring(found) .. " remotes.")
+    end)
+end
     
     -- Disconnect all connections
     if getgenv().WarfareTycoon.Connections then
@@ -460,6 +491,24 @@ local function createSlider(parent, text, min, max, default, callback)
     return container
 end
 
+-- Simple button helper
+local function createButton(parent, text, onClick)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.GothamSemibold
+    btn.AutoButtonColor = false
+    btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    btn.MouseButton1Click:Connect(function()
+        if onClick then pcall(onClick) end
+    end)
+    return btn
+end
+
 -- ===== TYCOON TAB =====
 do
     -- Auto Collect (Near only, no TP/Bring)
@@ -491,14 +540,21 @@ do
                 for _, obj in ipairs(workspace:GetDescendants()) do
                     if obj:IsA("ProximityPrompt") then
                         local lname = string.lower(obj.Name)
-                        if string.find(lname, "cash") or string.find(lname, "collect") or string.find(lname, "money") then
+                        local action = string.lower(obj.ActionText or "")
+                        local otext = string.lower(obj.ObjectText or "")
+                        local parentName = string.lower(obj.Parent and obj.Parent.Name or "")
+                        if lname:find("cash") or lname:find("collect") or lname:find("money")
+                           or action:find("collect") or action:find("cash") or otext:find("cash")
+                           or parentName:find("cash") or parentName:find("collect") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 25) then
                                 pcall(function() fireproximityprompt(obj) end)
                             end
                         end
                     elseif obj:IsA("ClickDetector") then
                         local lname = string.lower(obj.Name)
-                        if string.find(lname, "cash") or string.find(lname, "collect") or string.find(lname, "money") then
+                        local parentName = string.lower(obj.Parent and obj.Parent.Name or "")
+                        if lname:find("cash") or lname:find("collect") or lname:find("money")
+                           or parentName:find("cash") or parentName:find("collect") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 20) then
                                 pcall(function() fireclickdetector(obj) end)
                             end
@@ -514,14 +570,22 @@ do
                 for _, obj in ipairs(workspace:GetDescendants()) do
                     if obj:IsA("ProximityPrompt") then
                         local lname = string.lower(obj.Name)
-                        if string.find(lname, "buy") or string.find(lname, "upgrade") or string.find(lname, "purchase") or string.find(lname, "claim") then
+                        local action = string.lower(obj.ActionText or "")
+                        local otext = string.lower(obj.ObjectText or "")
+                        local parentName = string.lower(obj.Parent and obj.Parent.Name or "")
+                        if lname:find("buy") or lname:find("upgrade") or lname:find("purchase") or lname:find("claim")
+                           or action:find("buy") or action:find("upgrade") or action:find("purchase") or action:find("claim")
+                           or otext:find("buy") or otext:find("upgrade") or otext:find("purchase") or otext:find("claim")
+                           or parentName:find("buy") or parentName:find("upgrade") or parentName:find("purchase") or parentName:find("claim") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 22) then
                                 pcall(function() fireproximityprompt(obj) end)
                             end
                         end
                     elseif obj:IsA("ClickDetector") then
                         local lname = string.lower(obj.Name)
-                        if string.find(lname, "buy") or string.find(lname, "upgrade") or string.find(lname, "purchase") or string.find(lname, "claim") then
+                        local parentName = string.lower(obj.Parent and obj.Parent.Name or "")
+                        if lname:find("buy") or lname:find("upgrade") or lname:find("purchase") or lname:find("claim")
+                           or parentName:find("buy") or parentName:find("upgrade") or parentName:find("purchase") or parentName:find("claim") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 18) then
                                 pcall(function() fireclickdetector(obj) end)
                             end
@@ -590,6 +654,30 @@ do
                                 end
                             end
                         end
+                        -- Also try Attributes and Configurations inside the tool
+                        -- Attributes
+                        pcall(function()
+                            local attrs = tool:GetAttributes()
+                            for k, v in pairs(attrs) do
+                                local lk = string.lower(k)
+                                if type(v) == "number" and (lk:find("spread") or lk:find("accuracy") or lk:find("bloom")) then
+                                    tool:SetAttribute(k, 0)
+                                end
+                            end
+                        end)
+                        -- Configuration objects
+                        for _, cfg in ipairs(tool:GetDescendants()) do
+                            if cfg:IsA("Configuration") then
+                                for _, val in ipairs(cfg:GetDescendants()) do
+                                    if val:IsA("NumberValue") or val:IsA("IntValue") then
+                                        local ln = string.lower(val.Name)
+                                        if ln:find("spread") or ln:find("accuracy") or ln:find("bloom") then
+                                            val.Value = 0
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -600,32 +688,27 @@ do
     getgenv().WarfareTycoon.Enabled.Hitbox = false
     getgenv().WarfareTycoon.HitboxSize = 10
     getgenv().WarfareTycoon.HitboxPart = "Head"
+    getgenv().WarfareTycoon.HitboxState = getgenv().WarfareTycoon.HitboxState or {}
     
     createToggle(CombatTab, "📦 Hitbox Expander", function(enabled)
         getgenv().WarfareTycoon.Enabled.Hitbox = enabled
         
         if not enabled then
-            -- Restore original sizes
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local part = player.Character:FindFirstChild(getgenv().WarfareTycoon.HitboxPart)
-                    if part and part:IsA("BasePart") then
-                        -- Reset to original size
-                        if getgenv().WarfareTycoon.HitboxPart == "Head" then
-                            part.Size = Vector3.new(2, 1, 1)
-                        elseif getgenv().WarfareTycoon.HitboxPart == "Torso" or getgenv().WarfareTycoon.HitboxPart == "UpperTorso" then
-                            part.Size = Vector3.new(2, 2, 1)
-                        elseif getgenv().WarfareTycoon.HitboxPart == "LeftArm" or getgenv().WarfareTycoon.HitboxPart == "RightArm" then
-                            part.Size = Vector3.new(1, 2, 1)
-                        elseif getgenv().WarfareTycoon.HitboxPart == "LeftLeg" or getgenv().WarfareTycoon.HitboxPart == "RightLeg" then
-                            part.Size = Vector3.new(1, 2, 1)
-                        end
-                        part.Transparency = 0
-                        part.CanCollide = true
-                        part.Massless = false
+            -- Restore ALL tracked parts to their original state
+            local state = getgenv().WarfareTycoon.HitboxState
+            for player, parts in pairs(state) do
+                for part, orig in pairs(parts) do
+                    if typeof(part) == "Instance" and part.Parent then
+                        pcall(function()
+                            part.Size = orig.Size
+                            part.Transparency = orig.Transparency
+                            part.CanCollide = orig.CanCollide
+                            part.Massless = orig.Massless
+                        end)
                     end
                 end
             end
+            getgenv().WarfareTycoon.HitboxState = {}
         end
     end)
     
@@ -642,18 +725,54 @@ do
         if getgenv().WarfareTycoon.Enabled.Hitbox then
             hitboxFrameCount = hitboxFrameCount + 1
             if hitboxFrameCount % 10 ~= 0 then return end
-            
+
             local size = getgenv().WarfareTycoon.HitboxSize
             local partName = getgenv().WarfareTycoon.HitboxPart
-            
+            local state = getgenv().WarfareTycoon.HitboxState
+
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
+                    -- Reset any PREVIOUSLY enlarged parts for this player that are not the current target part
+                    local tracked = state[player]
+                    if tracked then
+                        for trackedPart, orig in pairs(tracked) do
+                            if typeof(trackedPart) == "Instance" and trackedPart.Parent then
+                                if trackedPart.Name ~= partName then
+                                    pcall(function()
+                                        trackedPart.Size = orig.Size
+                                        trackedPart.Transparency = orig.Transparency
+                                        trackedPart.CanCollide = orig.CanCollide
+                                        trackedPart.Massless = orig.Massless
+                                    end)
+                                    tracked[trackedPart] = nil
+                                end
+                            else
+                                tracked[trackedPart] = nil
+                            end
+                        end
+                        if next(tracked) == nil then state[player] = nil end
+                    end
+
+                    -- Enlarge CURRENT target part
                     local part = player.Character:FindFirstChild(partName)
                     if part and part:IsA("BasePart") then
-                        part.Size = Vector3.new(size, size, size)
-                        part.Transparency = 0.5
-                        part.CanCollide = false
-                        part.Massless = true
+                        -- Save original state once
+                        state[player] = state[player] or {}
+                        if not state[player][part] then
+                            state[player][part] = {
+                                Size = part.Size,
+                                Transparency = part.Transparency,
+                                CanCollide = part.CanCollide,
+                                Massless = part.Massless,
+                            }
+                        end
+                        -- Apply enlarged state
+                        pcall(function()
+                            part.Size = Vector3.new(size, size, size)
+                            part.Transparency = 0.5
+                            part.CanCollide = false
+                            part.Massless = true
+                        end)
                     end
                 end
             end
@@ -755,6 +874,18 @@ do
                 return closest
             end
 
+            -- Optional Remote Logger to F9
+            if getgenv().WarfareTycoon.Enabled and getgenv().WarfareTycoon.Enabled.RemoteLogger and (method == "FireServer" or method == "InvokeServer") then
+                pcall(function()
+                    local path = "[REMOTE] " .. (self and self.GetFullName and self:GetFullName() or tostring(self)) .. "(" .. method .. ")"
+                    local atypes = {}
+                    for i, a in ipairs(args) do
+                        atypes[#atypes+1] = typeof(a)
+                    end
+                    print(path .. " args: { " .. table.concat(atypes, ", ") .. " }")
+                end)
+            end
+
             if getgenv().WarfareTycoon.Enabled.SilentAim and (method == "FireServer" or method == "InvokeServer") then
                 local target = getClosestPlayer()
                 if target then
@@ -811,6 +942,21 @@ do
     createToggle(VisualsTab, "📏 ESP Distance", function(enabled)
         ESPDistanceEnabled = enabled
     end)
+    
+    -- Header for Visuals to ensure content is visible
+    do
+        local header = Instance.new("TextLabel")
+        header.Size = UDim2.new(1, -10, 0, 30)
+        header.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+        header.Text = "👁️ Visuals Controls"
+        header.TextColor3 = Color3.fromRGB(255, 255, 255)
+        header.TextSize = 14
+        header.Font = Enum.Font.GothamBold
+        header.TextXAlignment = Enum.TextXAlignment.Left
+        header.Position = UDim2.new(0, 5, 0, 0)
+        header.Parent = VisualsTab
+        Instance.new("UICorner", header).CornerRadius = UDim.new(0, 8)
+    end
     
     local function createESP(player)
         if player == LocalPlayer then return end
