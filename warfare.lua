@@ -976,17 +976,39 @@ do
     local ESPNameEnabled = true
     local ESPHealthEnabled = true
     local ESPDistanceEnabled = true
-    
-    createToggle(VisualsTab, "👁️ ESP Master", function(enabled)
-        ESPEnabled = enabled
-        
-        if not enabled then
-            for player, data in pairs(getgenv().WarfareTycoon.ESPObjects) do
+    local ESPConns = {}
+    local ESPBoxOutlineEnabled = true
+    local ESPTracerEnabled = false
+    local ESPColorMode = "Team" -- or "Static"
+    local ESPBoxThickness = 1
+    local ESPDistanceFadeEnabled = true
+
+    local function cleanupESP()
+        for plr, data in pairs(getgenv().WarfareTycoon.ESPObjects) do
+            pcall(function()
                 if data.billboard then data.billboard:Destroy() end
                 if data.box then data.box:Remove() end
                 if data.boxOutline then data.boxOutline:Remove() end
+            end)
+            getgenv().WarfareTycoon.ESPObjects[plr] = nil
+        end
+        for i, c in ipairs(ESPConns) do
+            pcall(function() c:Disconnect() end)
+            ESPConns[i] = nil
+        end
+    end
+
+    createToggle(VisualsTab, "👁️ ESP Master", function(enabled)
+        ESPEnabled = enabled
+        if enabled then
+            -- Create ESP for existing players immediately
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then
+                    task.spawn(function() createESP(p) end)
+                end
             end
-            getgenv().WarfareTycoon.ESPObjects = {}
+        else
+            cleanupESP()
         end
     end)
     
@@ -1005,6 +1027,26 @@ do
     createToggle(VisualsTab, "📏 ESP Distance", function(enabled)
         ESPDistanceEnabled = enabled
     end)
+
+    createToggle(VisualsTab, "🧊 Box Outline", function(enabled)
+        ESPBoxOutlineEnabled = enabled
+    end)
+
+    createToggle(VisualsTab, "📍 Tracer (bottom)", function(enabled)
+        ESPTracerEnabled = enabled
+    end)
+
+    createDropdown(VisualsTab, "🎨 Color Mode", {"Team", "Static"}, function(v)
+        ESPColorMode = v
+    end)
+
+    createSlider(VisualsTab, "   Box Thickness", 1, 5, ESPBoxThickness, function(v)
+        ESPBoxThickness = v
+    end)
+
+    createToggle(VisualsTab, "🌫️ Distance Fade", function(enabled)
+        ESPDistanceFadeEnabled = enabled
+    end)
     
     -- Header for Visuals to ensure content is visible
     do
@@ -1021,7 +1063,7 @@ do
         Instance.new("UICorner", header).CornerRadius = UDim.new(0, 8)
     end
     
-    local function createESP(player)
+    function createESP(player)
         if player == LocalPlayer then return end
         if getgenv().WarfareTycoon.ESPObjects[player] then return end
         
@@ -1067,7 +1109,7 @@ do
         distLabel.Parent = billboard
         
         -- Box ESP (Drawing API)
-        if Drawing then
+        if typeof(Drawing) == "table" and typeof(Drawing.new) == "function" then
             espData.boxOutline = Drawing.new("Square")
             espData.boxOutline.Visible = false
             espData.boxOutline.Color = Color3.new(0, 0, 0)
@@ -1079,12 +1121,18 @@ do
             espData.box.Color = Color3.new(1, 0, 0)
             espData.box.Thickness = 1
             espData.box.Filled = false
+            
+            espData.tracer = Drawing.new("Line")
+            espData.tracer.Visible = false
+            espData.tracer.Color = Color3.new(1, 0, 0)
+            espData.tracer.Thickness = 1
         end
         
         espData.billboard = billboard
         espData.nameLabel = nameLabel
         espData.healthLabel = healthLabel
         espData.distLabel = distLabel
+        espData.attached = false
         
         getgenv().WarfareTycoon.ESPObjects[player] = espData
         
@@ -1097,10 +1145,12 @@ do
             if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
                 local hrp = char.HumanoidRootPart
                 local hum = char.Humanoid
-                
-                -- Billboard
-                billboard.Adornee = hrp
-                billboard.Parent = hrp
+                -- Attach once to avoid Parent locked spam
+                if not espData.attached then
+                    billboard.Adornee = hrp
+                    billboard.Parent = hrp
+                    espData.attached = true
+                end
                 
                 -- Distance
                 local dist = (hrp.Position - myChar.HumanoidRootPart.Position).Magnitude
@@ -1135,7 +1185,7 @@ do
                 end
                 
                 -- Box
-                if Drawing then
+                if typeof(Drawing) == "table" and typeof(Drawing.new) == "function" then
                     local camera = workspace.CurrentCamera
                     local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
                     
@@ -1145,66 +1195,86 @@ do
                         
                         local height = math.abs(headPos.Y - legPos.Y)
                         local width = height / 2
+                        local center = Vector2.new(screenPos.X, screenPos.Y)
+
+                        -- Color selection
+                        local color = Color3.new(1,0,0)
+                        if ESPColorMode == "Team" and player.TeamColor then
+                            local c = player.TeamColor.Color
+                            color = Color3.new(c.R, c.G, c.B)
+                        end
                         
                         if ESPBoxEnabled and espData.box then
                             espData.box.Size = Vector2.new(width, height)
                             espData.box.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
                             espData.box.Visible = true
+                            espData.box.Color = color
+                            espData.box.Thickness = ESPBoxThickness
+                            if ESPDistanceFadeEnabled then
+                                local alpha = math.clamp(1 - (dist/800), 0.25, 1)
+                                pcall(function() espData.box.Transparency = 1 - alpha end)
+                            end
                             
-                            espData.boxOutline.Size = Vector2.new(width, height)
-                            espData.boxOutline.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
-                            espData.boxOutline.Visible = true
+                            if ESPBoxOutlineEnabled and espData.boxOutline then
+                                espData.boxOutline.Size = Vector2.new(width, height)
+                                espData.boxOutline.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
+                                espData.boxOutline.Visible = true
+                            else
+                                if espData.boxOutline then espData.boxOutline.Visible = false end
+                            end
                         else
                             if espData.box then espData.box.Visible = false end
                             if espData.boxOutline then espData.boxOutline.Visible = false end
                         end
+
+                        -- Tracer
+                        if ESPTracerEnabled and espData.tracer then
+                            local bottom = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y)
+                            espData.tracer.From = bottom
+                            espData.tracer.To = center
+                            espData.tracer.Color = color
+                            espData.tracer.Visible = true
+                        elseif espData.tracer then
+                            espData.tracer.Visible = false
+                        end
                     else
                         if espData.box then espData.box.Visible = false end
                         if espData.boxOutline then espData.boxOutline.Visible = false end
+                        if espData.tracer then espData.tracer.Visible = false end
                     end
                 end
             else
                 billboard.Parent = nil
                 if espData.box then espData.box.Visible = false end
                 if espData.boxOutline then espData.boxOutline.Visible = false end
+                if espData.tracer then espData.tracer.Visible = false end
+                espData.attached = false
             end
         end
         
-        RunService.RenderStepped:Connect(updateESP)
+        local conn = RunService.RenderStepped:Connect(updateESP)
+        table.insert(ESPConns, conn)
     end
     
-    -- Create ESP for all players
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            task.spawn(function()
-                createESP(player)
-            end)
-        end
-    end
-    
-    -- Handle new players
-    Players.PlayerAdded:Connect(function(player)
+    -- Handle new/removed players
+    table.insert(ESPConns, Players.PlayerAdded:Connect(function(player)
         if ESPEnabled then
             task.wait(1)
             createESP(player)
         end
-    end)
-    
-    -- Handle player leaving
-    Players.PlayerRemoving:Connect(function(player)
-        if getgenv().WarfareTycoon.ESPObjects[player] then
-            if getgenv().WarfareTycoon.ESPObjects[player].billboard then
-                getgenv().WarfareTycoon.ESPObjects[player].billboard:Destroy()
-            end
-            if getgenv().WarfareTycoon.ESPObjects[player].box then
-                getgenv().WarfareTycoon.ESPObjects[player].box:Remove()
-            end
-            if getgenv().WarfareTycoon.ESPObjects[player].boxOutline then
-                getgenv().WarfareTycoon.ESPObjects[player].boxOutline:Remove()
-            end
+    end))
+    table.insert(ESPConns, Players.PlayerRemoving:Connect(function(player)
+        local data = getgenv().WarfareTycoon.ESPObjects[player]
+        if data then
+            pcall(function()
+                if data.billboard then data.billboard:Destroy() end
+                if data.box then data.box:Remove() end
+                if data.boxOutline then data.boxOutline:Remove() end
+                if data.tracer then data.tracer:Remove() end
+            end)
             getgenv().WarfareTycoon.ESPObjects[player] = nil
         end
-    end)
+    end))
 end
 
 print("[Warfare Tycoon] Visual features loaded!")
@@ -1269,6 +1339,85 @@ do
         pcall(function() scan(game:GetService("StarterGui")) end)
         pcall(function() scan(game:GetService("StarterPack")) end)
         print("[MONEY] Done. Found " .. tostring(found) .. " candidates.")
+    end)
+
+    -- Remote Playground: Detect and use CollectCashEvent
+    getgenv().WarfareTycoon._CollectCashRemote = getgenv().WarfareTycoon._CollectCashRemote or nil
+    getgenv().WarfareTycoon.Enabled.AutoCashBurst = getgenv().WarfareTycoon.Enabled.AutoCashBurst or false
+
+    local function findCollectCash()
+        local target
+        local function scan(root)
+            for _, d in ipairs(root:GetDescendants()) do
+                if d:IsA("RemoteEvent") then
+                    local name = string.lower(d.Name)
+                    if name:find("collect") and name:find("cash") then
+                        target = d
+                        return true
+                    end
+                end
+            end
+            return false
+        end
+        pcall(function() if scan(game:GetService("ReplicatedStorage")) then return end end)
+        if not target then pcall(function() scan(workspace) end) end
+        if target then
+            getgenv().WarfareTycoon._CollectCashRemote = target
+            print("[Remote] CollectCashEvent: " .. target:GetFullName())
+        else
+            print("[Remote] CollectCashEvent not found")
+        end
+        return target
+    end
+
+    createButton(MiscTab, "🧪 Find CollectCashEvent", function()
+        findCollectCash()
+    end)
+
+    createButton(MiscTab, "⚡ Burst CollectCash x50", function()
+        local r = getgenv().WarfareTycoon._CollectCashRemote or findCollectCash()
+        if r and r:IsA("RemoteEvent") then
+            task.spawn(function()
+                for i=1,50 do
+                    pcall(function() r:FireServer() end)
+                    task.wait(0.02)
+                end
+            end)
+            print("[Remote] Burst CollectCash x50 sent")
+        else
+            print("[Remote] CollectCashEvent not available")
+        end
+    end)
+
+    createToggle(MiscTab, "♻️ Auto Burst CollectCash (x50/5s)", function(enabled)
+        getgenv().WarfareTycoon.Enabled.AutoCashBurst = enabled
+    end)
+
+    -- Auto burst loop (throttled)
+    local lastBurst = 0
+    RunService.Heartbeat:Connect(function()
+        if not getgenv().WarfareTycoon.Enabled.AutoCashBurst then return end
+        local t = tick()
+        if t - lastBurst < 5 then return end
+        lastBurst = t
+        local r = getgenv().WarfareTycoon._CollectCashRemote or findCollectCash()
+        if r and r:IsA("RemoteEvent") then
+            task.spawn(function()
+                for i=1,50 do
+                    pcall(function() r:FireServer() end)
+                    task.wait(0.02)
+                end
+            end)
+        end
+    end)
+
+    -- Print categorized remote list (actions idea)
+    createButton(MiscTab, "📜 Print Actions from Money Remotes", function()
+        print("[Actions] Examples you can try if server allows:")
+        print("- Fire CollectCashEvent multiple times (burst or auto-burst)")
+        print("- AttemptPurchase remotes with different item IDs (may need args)")
+        print("- Reward/DisplayAddition events to trigger in-game rewards")
+        print("Note: Many servers validate on server-side; success depends on game checks.")
     end)
 end
 
