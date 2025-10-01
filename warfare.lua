@@ -426,16 +426,32 @@ CloseBtn.MouseButton1Click:Connect(function()
         BackgroundTransparency = 1
     }):Play()
     
+    TweenService:Create(TitleBar, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 1
+    }):Play()
+    
+    TweenService:Create(TabContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 1
+    }):Play()
+    
+    TweenService:Create(ContentContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 1
+    }):Play()
+    
     for _, child in pairs(MainFrame:GetDescendants()) do
-        if child:IsA("GuiObject") then
+        if child:IsA("TextLabel") or child:IsA("TextButton") then
             TweenService:Create(child, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-                BackgroundTransparency = 1,
                 TextTransparency = 1
+            }):Play()
+        end
+        if child:IsA("Frame") and child.Name ~= "Shadow" then
+            TweenService:Create(child, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+                BackgroundTransparency = 1
             }):Play()
         end
     end
     
-    task.wait(0.3)
+    task.wait(0.35)
     
     -- Complete cleanup
     cleanup()
