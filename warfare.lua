@@ -360,26 +360,236 @@ tabs["Tycoon"].icon.TextColor3 = Color3.fromRGB(255, 255, 255)
 tabs["Tycoon"].label.TextColor3 = Color3.fromRGB(255, 255, 255)
 tabs["Tycoon"].content.Visible = true
 
--- Placeholder text for each tab
-local function addPlaceholder(tab, text)
-    local placeholder = Instance.new("TextLabel")
-    placeholder.Size = UDim2.new(1, -10, 0, 100)
-    placeholder.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    placeholder.Text = text
-    placeholder.TextColor3 = Color3.fromRGB(200, 200, 220)
-    placeholder.TextSize = 14
-    placeholder.Font = Enum.Font.Gotham
-    placeholder.TextWrapped = true
-    placeholder.Parent = tab
+-- Helper Functions
+local function createToggle(parent, text, callback)
+    local enabled = false
     
-    Instance.new("UICorner", placeholder).CornerRadius = UDim.new(0, 8)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 45)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    btn.Text = text .. ": OFF"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.GothamSemibold
+    btn.AutoButtonColor = false
+    btn.Parent = parent
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    btn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
+        
+        if enabled then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 200, 100)}):Play()
+        else
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 35)}):Play()
+        end
+        
+        if callback then
+            pcall(function() callback(enabled) end)
+        end
+    end)
+    
+    return btn
 end
 
-addPlaceholder(TycoonTab, "🏭 Tycoon Features\n\nAuto collect, auto claim, infinite cash...\n\nFeatures will be added here!")
-addPlaceholder(CombatTab, "⚔️ Combat Features\n\nAimbot, hitbox, infinite ammo...\n\nFeatures will be added here!")
-addPlaceholder(PlayerTab, "🏃 Player Features\n\nSpeed, fly, god mode...\n\nFeatures will be added here!")
-addPlaceholder(VisualsTab, "👁️ Visual Features\n\nESP, chams, fullbright...\n\nFeatures will be added here!")
-addPlaceholder(MiscTab, "🎮 Misc Features\n\nPlayer list, settings...\n\nFeatures will be added here!")
+local function createSlider(parent, text, min, max, default, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -10, 0, 60)
+    container.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    container.Parent = parent
+    
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 0, 25)
+    label.Position = UDim2.new(0, 10, 0, 5)
+    label.BackgroundTransparency = 1
+    label.Text = text .. ": " .. default
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 13
+    label.Font = Enum.Font.GothamSemibold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(1, -20, 0, 6)
+    sliderBg.Position = UDim2.new(0, 10, 0, 35)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    sliderBg.Parent = container
+    
+    Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(0, 3)
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+    sliderFill.Parent = sliderBg
+    
+    Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(0, 3)
+    
+    local dragging = false
+    
+    sliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    
+    sliderBg.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local pos = (input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X
+            pos = math.clamp(pos, 0, 1)
+            
+            local value = math.floor(min + (max - min) * pos)
+            sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+            label.Text = text .. ": " .. value
+            
+            if callback then
+                pcall(function() callback(value) end)
+            end
+        end
+    end)
+    
+    return container
+end
+
+local function createDropdown(parent, text, options, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -10, 0, 45)
+    container.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    container.Parent = parent
+    
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.BackgroundTransparency = 1
+    btn.Text = text .. ": " .. options[1]
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Parent = container
+    
+    local currentIndex = 1
+    
+    btn.MouseButton1Click:Connect(function()
+        currentIndex = currentIndex + 1
+        if currentIndex > #options then
+            currentIndex = 1
+        end
+        
+        btn.Text = text .. ": " .. options[currentIndex]
+        
+        if callback then
+            pcall(function() callback(options[currentIndex]) end)
+        end
+    end)
+    
+    return container
+end
+
+-- ===== COMBAT TAB =====
+do
+    -- No Spread
+    getgenv().WarfareTycoon.Enabled.NoSpread = false
+    createToggle(CombatTab, "💥 No Spread", function(enabled)
+        getgenv().WarfareTycoon.Enabled.NoSpread = enabled
+    end)
+    
+    RunService.Heartbeat:Connect(function()
+        if getgenv().WarfareTycoon.Enabled.NoSpread then
+            local char = LocalPlayer.Character
+            if char then
+                for _, tool in ipairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                                local name = string.lower(obj.Name)
+                                if string.find(name, "spread") or string.find(name, "accuracy") or string.find(name, "bloom") then
+                                    obj.Value = 0
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- Hitbox Expander
+    getgenv().WarfareTycoon.Enabled.Hitbox = false
+    getgenv().WarfareTycoon.HitboxSize = 10
+    getgenv().WarfareTycoon.HitboxPart = "Head"
+    
+    createToggle(CombatTab, "📦 Hitbox Expander", function(enabled)
+        getgenv().WarfareTycoon.Enabled.Hitbox = enabled
+        
+        if not enabled then
+            -- Restore original sizes
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local part = player.Character:FindFirstChild(getgenv().WarfareTycoon.HitboxPart)
+                    if part and part:IsA("BasePart") then
+                        -- Reset to original size
+                        if getgenv().WarfareTycoon.HitboxPart == "Head" then
+                            part.Size = Vector3.new(2, 1, 1)
+                        elseif getgenv().WarfareTycoon.HitboxPart == "Torso" or getgenv().WarfareTycoon.HitboxPart == "UpperTorso" then
+                            part.Size = Vector3.new(2, 2, 1)
+                        elseif getgenv().WarfareTycoon.HitboxPart == "LeftArm" or getgenv().WarfareTycoon.HitboxPart == "RightArm" then
+                            part.Size = Vector3.new(1, 2, 1)
+                        elseif getgenv().WarfareTycoon.HitboxPart == "LeftLeg" or getgenv().WarfareTycoon.HitboxPart == "RightLeg" then
+                            part.Size = Vector3.new(1, 2, 1)
+                        end
+                        part.Transparency = 0
+                        part.CanCollide = true
+                        part.Massless = false
+                    end
+                end
+            end
+        end
+    end)
+    
+    createSlider(CombatTab, "   Hitbox Size", 5, 50, 10, function(value)
+        getgenv().WarfareTycoon.HitboxSize = value
+    end)
+    
+    createDropdown(CombatTab, "   Hitbox Part", {"Head", "Torso", "UpperTorso", "LeftArm", "RightArm", "LeftLeg", "RightLeg"}, function(value)
+        getgenv().WarfareTycoon.HitboxPart = value
+    end)
+    
+    local hitboxFrameCount = 0
+    RunService.Heartbeat:Connect(function()
+        if getgenv().WarfareTycoon.Enabled.Hitbox then
+            hitboxFrameCount = hitboxFrameCount + 1
+            if hitboxFrameCount % 10 ~= 0 then return end
+            
+            local size = getgenv().WarfareTycoon.HitboxSize
+            local partName = getgenv().WarfareTycoon.HitboxPart
+            
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local part = player.Character:FindFirstChild(partName)
+                    if part and part:IsA("BasePart") then
+                        part.Size = Vector3.new(size, size, size)
+                        part.Transparency = 0.5
+                        part.CanCollide = false
+                        part.Massless = true
+                    end
+                end
+            end
+        end
+    end)
+end
+
+print("[Warfare Tycoon] Combat features loaded!")
+print("[Warfare Tycoon] Features: No Spread, Hitbox Expander")
 
 -- Minimize/Maximize functionality
 local isMinimized = false
