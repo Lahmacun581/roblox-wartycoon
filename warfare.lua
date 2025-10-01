@@ -216,69 +216,170 @@ CloseIcon2.Parent = CloseBtn
 
 Instance.new("UICorner", CloseIcon2).CornerRadius = UDim.new(0, 1)
 
--- Content Container
+-- Tab Container (Left Sidebar)
+local TabContainer = Instance.new("ScrollingFrame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(0, 130, 1, -70)
+TabContainer.Position = UDim2.new(0, 10, 0, 60)
+TabContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+TabContainer.BorderSizePixel = 0
+TabContainer.ScrollBarThickness = 4
+TabContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 70, 70)
+TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+TabContainer.Parent = MainFrame
+
+Instance.new("UICorner", TabContainer).CornerRadius = UDim.new(0, 12)
+
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.Padding = UDim.new(0, 5)
+TabLayout.Parent = TabContainer
+
+TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y + 10)
+end)
+
+-- Content Container (Right Side)
 local ContentContainer = Instance.new("Frame")
 ContentContainer.Name = "ContentContainer"
-ContentContainer.Size = UDim2.new(1, -20, 1, -70)
-ContentContainer.Position = UDim2.new(0, 10, 0, 60)
+ContentContainer.Size = UDim2.new(0, 490, 1, -70)
+ContentContainer.Position = UDim2.new(0, 150, 0, 60)
 ContentContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 ContentContainer.BorderSizePixel = 0
 ContentContainer.Parent = MainFrame
 
 Instance.new("UICorner", ContentContainer).CornerRadius = UDim.new(0, 12)
 
--- Welcome Container
-local WelcomeContainer = Instance.new("Frame")
-WelcomeContainer.Size = UDim2.new(1, -40, 0, 200)
-WelcomeContainer.Position = UDim2.new(0, 20, 0, 100)
-WelcomeContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-WelcomeContainer.BorderSizePixel = 0
-WelcomeContainer.Parent = ContentContainer
+-- Tab System
+local tabs = {}
+local currentTab = nil
 
-Instance.new("UICorner", WelcomeContainer).CornerRadius = UDim.new(0, 12)
+local function createTab(name, icon, color)
+    -- Tab Button
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Size = UDim2.new(1, -10, 0, 45)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    tabBtn.Text = ""
+    tabBtn.AutoButtonColor = false
+    tabBtn.Parent = TabContainer
+    
+    Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 8)
+    
+    -- Tab Icon
+    local tabIcon = Instance.new("TextLabel")
+    tabIcon.Size = UDim2.new(0, 30, 0, 30)
+    tabIcon.Position = UDim2.new(0, 5, 0, 7.5)
+    tabIcon.BackgroundTransparency = 1
+    tabIcon.Text = icon
+    tabIcon.TextSize = 18
+    tabIcon.Font = Enum.Font.GothamBold
+    tabIcon.TextColor3 = Color3.fromRGB(150, 150, 160)
+    tabIcon.Parent = tabBtn
+    
+    -- Tab Label
+    local tabLabel = Instance.new("TextLabel")
+    tabLabel.Size = UDim2.new(1, -40, 1, 0)
+    tabLabel.Position = UDim2.new(0, 40, 0, 0)
+    tabLabel.BackgroundTransparency = 1
+    tabLabel.Text = name
+    tabLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
+    tabLabel.TextSize = 13
+    tabLabel.Font = Enum.Font.GothamSemibold
+    tabLabel.TextXAlignment = Enum.TextXAlignment.Left
+    tabLabel.Parent = tabBtn
+    
+    -- Tab Content
+    local tabContent = Instance.new("ScrollingFrame")
+    tabContent.Name = name .. "Content"
+    tabContent.Size = UDim2.new(1, -20, 1, -20)
+    tabContent.Position = UDim2.new(0, 10, 0, 10)
+    tabContent.BackgroundTransparency = 1
+    tabContent.BorderSizePixel = 0
+    tabContent.ScrollBarThickness = 4
+    tabContent.ScrollBarImageColor3 = Color3.fromRGB(255, 70, 70)
+    tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+    tabContent.Visible = false
+    tabContent.Parent = ContentContainer
+    
+    local contentLayout = Instance.new("UIListLayout")
+    contentLayout.Padding = UDim.new(0, 10)
+    contentLayout.Parent = tabContent
+    
+    contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        tabContent.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 10)
+    end)
+    
+    tabs[name] = {
+        button = tabBtn,
+        content = tabContent,
+        icon = tabIcon,
+        label = tabLabel,
+        color = color
+    }
+    
+    -- Tab Click
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, tab in pairs(tabs) do
+            TweenService:Create(tab.button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 35)}):Play()
+            tab.icon.TextColor3 = Color3.fromRGB(150, 150, 160)
+            tab.label.TextColor3 = Color3.fromRGB(150, 150, 160)
+            tab.content.Visible = false
+        end
+        
+        TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
+        tabIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tabLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tabContent.Visible = true
+        currentTab = name
+    end)
+    
+    return tabContent
+end
 
--- Gradient for Welcome Container
-local WelcomeGradient = Instance.new("UIGradient")
-WelcomeGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 35)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 30))
-}
-WelcomeGradient.Rotation = 45
-WelcomeGradient.Parent = WelcomeContainer
+-- Create Tabs
+local TycoonTab = createTab("Tycoon", "🏭", Color3.fromRGB(50, 150, 50))
+local CombatTab = createTab("Combat", "⚔️", Color3.fromRGB(255, 70, 70))
+local PlayerTab = createTab("Player", "🏃", Color3.fromRGB(100, 150, 255))
+local VisualsTab = createTab("Visuals", "👁️", Color3.fromRGB(150, 100, 255))
+local MiscTab = createTab("Misc", "🎮", Color3.fromRGB(255, 200, 0))
 
--- Welcome Icon
-local WelcomeIcon = Instance.new("TextLabel")
-WelcomeIcon.Size = UDim2.new(0, 60, 0, 60)
-WelcomeIcon.Position = UDim2.new(0.5, -30, 0, 20)
-WelcomeIcon.BackgroundTransparency = 1
-WelcomeIcon.Text = "⚔️"
-WelcomeIcon.TextColor3 = Color3.fromRGB(255, 70, 70)
-WelcomeIcon.TextSize = 48
-WelcomeIcon.Font = Enum.Font.GothamBold
-WelcomeIcon.Parent = WelcomeContainer
+-- Initialize all tabs (make them visible briefly to render content)
+for _, tab in pairs(tabs) do
+    tab.content.Visible = true
+end
 
--- Welcome Title
-local WelcomeTitle = Instance.new("TextLabel")
-WelcomeTitle.Size = UDim2.new(1, -20, 0, 30)
-WelcomeTitle.Position = UDim2.new(0, 10, 0, 90)
-WelcomeTitle.BackgroundTransparency = 1
-WelcomeTitle.Text = "Warfare Tycoon GUI v3.0"
-WelcomeTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-WelcomeTitle.TextSize = 20
-WelcomeTitle.Font = Enum.Font.GothamBold
-WelcomeTitle.Parent = WelcomeContainer
+task.wait(0.1)
 
--- Welcome Subtitle
-local WelcomeSubtitle = Instance.new("TextLabel")
-WelcomeSubtitle.Size = UDim2.new(1, -20, 0, 60)
-WelcomeSubtitle.Position = UDim2.new(0, 10, 0, 125)
-WelcomeSubtitle.BackgroundTransparency = 1
-WelcomeSubtitle.Text = "Modern UI Design\nReady for feature development\nPress Right Shift to toggle"
-WelcomeSubtitle.TextColor3 = Color3.fromRGB(150, 150, 170)
-WelcomeSubtitle.TextSize = 14
-WelcomeSubtitle.Font = Enum.Font.Gotham
-WelcomeSubtitle.TextWrapped = true
-WelcomeSubtitle.Parent = WelcomeContainer
+-- Then hide all except first
+for _, tab in pairs(tabs) do
+    tab.content.Visible = false
+end
+
+-- Open first tab
+tabs["Tycoon"].button.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+tabs["Tycoon"].icon.TextColor3 = Color3.fromRGB(255, 255, 255)
+tabs["Tycoon"].label.TextColor3 = Color3.fromRGB(255, 255, 255)
+tabs["Tycoon"].content.Visible = true
+
+-- Placeholder text for each tab
+local function addPlaceholder(tab, text)
+    local placeholder = Instance.new("TextLabel")
+    placeholder.Size = UDim2.new(1, -10, 0, 100)
+    placeholder.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    placeholder.Text = text
+    placeholder.TextColor3 = Color3.fromRGB(200, 200, 220)
+    placeholder.TextSize = 14
+    placeholder.Font = Enum.Font.Gotham
+    placeholder.TextWrapped = true
+    placeholder.Parent = tab
+    
+    Instance.new("UICorner", placeholder).CornerRadius = UDim.new(0, 8)
+end
+
+addPlaceholder(TycoonTab, "🏭 Tycoon Features\n\nAuto collect, auto claim, infinite cash...\n\nFeatures will be added here!")
+addPlaceholder(CombatTab, "⚔️ Combat Features\n\nAimbot, hitbox, infinite ammo...\n\nFeatures will be added here!")
+addPlaceholder(PlayerTab, "🏃 Player Features\n\nSpeed, fly, god mode...\n\nFeatures will be added here!")
+addPlaceholder(VisualsTab, "👁️ Visual Features\n\nESP, chams, fullbright...\n\nFeatures will be added here!")
+addPlaceholder(MiscTab, "🎮 Misc Features\n\nPlayer list, settings...\n\nFeatures will be added here!")
 
 -- Minimize/Maximize functionality
 local isMinimized = false
