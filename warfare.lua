@@ -37,104 +37,7 @@ local function cleanup()
         getgenv().WarfareTycoon.ScreenGui = nil
     end
     
-    -- Item ESP
-    do
-        getgenv().WarfareTycoon.ItemESPObjects = getgenv().WarfareTycoon.ItemESPObjects or {}
-        local ItemESPEnabled = false
-        local patterns = {
-            "cash", "money", "coin", "coins", "gold", "bucks", "gem", "gems",
-            "weapon", "gun", "crate", "drop", "supply", "ammo"
-        }
-        local function isItemLike(name)
-            local ln = string.lower(name or "")
-            for _, p in ipairs(patterns) do
-                if ln:find(p) then return true end
-            end
-            return false
-        end
-
-        local function ensureEspFor(inst)
-            if getgenv().WarfareTycoon.ItemESPObjects[inst] then return end
-            local billboard = Instance.new("BillboardGui")
-            billboard.AlwaysOnTop = true
-            billboard.Size = UDim2.new(0, 120, 0, 40)
-            billboard.StudsOffset = Vector3.new(0, 2, 0)
-
-            local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.BackgroundTransparency = 1
-            label.Text = inst.Name
-            label.TextColor3 = Color3.fromRGB(255, 255, 0)
-            label.TextSize = 13
-            label.Font = Enum.Font.GothamBold
-            label.TextStrokeTransparency = 0
-            label.Parent = billboard
-
-            local adornee
-            if inst:IsA("BasePart") then
-                adornee = inst
-            elseif inst:IsA("Model") then
-                adornee = inst:FindFirstChildWhichIsA("BasePart")
-            end
-            if not adornee then return end
-
-            billboard.Adornee = adornee
-            billboard.Parent = adornee
-
-            local hl = Instance.new("Highlight")
-            hl.FillTransparency = 0.8
-            hl.OutlineTransparency = 0
-            hl.FillColor = Color3.fromRGB(255, 255, 0)
-            hl.OutlineColor = Color3.fromRGB(0, 0, 0)
-            hl.Parent = inst
-
-            getgenv().WarfareTycoon.ItemESPObjects[inst] = {billboard = billboard, highlight = hl}
-        end
-
-        local function clearItemESP()
-            for inst, data in pairs(getgenv().WarfareTycoon.ItemESPObjects) do
-                pcall(function()
-                    if data.billboard then data.billboard:Destroy() end
-                    if data.highlight then data.highlight:Destroy() end
-                end)
-            end
-            getgenv().WarfareTycoon.ItemESPObjects = {}
-        end
-
-        createToggle(VisualsTab, "📦 Item ESP", function(enabled)
-            ItemESPEnabled = enabled
-            if not enabled then
-                clearItemESP()
-            end
-        end)
-
-        -- Scan periodically when enabled
-        local scanTick = 0
-        RunService.Heartbeat:Connect(function()
-            if not ItemESPEnabled then return end
-            scanTick += 1
-            if scanTick % 20 ~= 0 then return end -- ~3x/sec
-
-            pcall(function()
-                for _, d in ipairs(workspace:GetDescendants()) do
-                    if (d:IsA("BasePart") or d:IsA("Model")) and isItemLike(d.Name) then
-                        ensureEspFor(d)
-                    end
-                end
-            end)
-
-            -- Clean up missing instances
-            for inst, data in pairs(getgenv().WarfareTycoon.ItemESPObjects) do
-                if typeof(inst) ~= "Instance" or not inst.Parent then
-                    pcall(function()
-                        if data.billboard then data.billboard:Destroy() end
-                        if data.highlight then data.highlight:Destroy() end
-                    end)
-                    getgenv().WarfareTycoon.ItemESPObjects[inst] = nil
-                end
-            end
-        end)
-    end
+    -- (moved) Item ESP is initialized under the Visuals section
 
     -- Disconnect all connections
     if getgenv().WarfareTycoon.Connections then
@@ -310,43 +213,9 @@ do
             end
         end
     end)
-
-    -- Anti-Cheat Suite
-    getgenv().WarfareTycoon.Enabled.AntiKick = getgenv().WarfareTycoon.Enabled.AntiKick or false
-    getgenv().WarfareTycoon.Enabled.RemoteBlocker = getgenv().WarfareTycoon.Enabled.RemoteBlocker or false
-    getgenv().WarfareTycoon.Enabled.AntiAFK = getgenv().WarfareTycoon.Enabled.AntiAFK or false
-    getgenv().WarfareTycoon.Connections = getgenv().WarfareTycoon.Connections or {}
-
-    createToggle(MiscTab, "🛡️ AntiKick", function(enabled)
-        getgenv().WarfareTycoon.Enabled.AntiKick = enabled
-        print("[Warfare Tycoon] AntiKick: " .. (enabled and "ON" or "OFF"))
-    end)
-
-    createToggle(MiscTab, "🚫 Block Suspicious Remotes", function(enabled)
-        getgenv().WarfareTycoon.Enabled.RemoteBlocker = enabled
-        print("[Warfare Tycoon] RemoteBlocker: " .. (enabled and "ON" or "OFF"))
-    end)
-
-    createToggle(MiscTab, "🕒 Anti-AFK", function(enabled)
-        getgenv().WarfareTycoon.Enabled.AntiAFK = enabled
-        -- disconnect previous
-        if getgenv().WarfareTycoon.Connections.AntiAFK then
-            pcall(function() getgenv().WarfareTycoon.Connections.AntiAFK:Disconnect() end)
-            getgenv().WarfareTycoon.Connections.AntiAFK = nil
-        end
-        if enabled then
-            getgenv().WarfareTycoon.Connections.AntiAFK = LocalPlayer.Idled:Connect(function()
-                pcall(function()
-                    VirtualUser:CaptureController()
-                    VirtualUser:ClickButton2(Vector2.new(0,0))
-                end)
-            end)
-            print("[Warfare Tycoon] Anti-AFK: ON")
-        else
-            print("[Warfare Tycoon] Anti-AFK: OFF")
-        end
-    end)
 end
+
+-- (moved) Player tab content is initialized later, after tabs are created
 
 -- Cleanup old GUI if exists
 if PlayerGui:FindFirstChild("WarfareTycoonGUI") then
