@@ -969,32 +969,7 @@ do
             local args = {...}
             local method = getnamecallmethod and getnamecallmethod() or ""
 
-            -- AntiKick: block Player:Kick()
-            if getgenv().WarfareTycoon.Enabled and getgenv().WarfareTycoon.Enabled.AntiKick then
-                if method == "Kick" and (self == LocalPlayer or tostring(self) == LocalPlayer.Name) then
-                    print("[AntiKick] Blocked Kick() call")
-                    return nil
-                end
-            end
-
-            -- RemoteBlocker: block suspicious remotes
-            if getgenv().WarfareTycoon.Enabled and getgenv().WarfareTycoon.Enabled.RemoteBlocker then
-                if (method == "FireServer" or method == "InvokeServer") and typeof(self) == "Instance" then
-                    local n = string.lower(self.Name)
-                    local full = (self.GetFullName and self:GetFullName() or self.Name)
-                    local suspicious = {
-                        "anticheat","anti_cheat","ban","kick","log","detect","exploit","cheat","report","flag"
-                    }
-                    local flagged = false
-                    for _, p in ipairs(suspicious) do
-                        if n:find(p) or string.lower(full):find(p) then flagged = true break end
-                    end
-                    if flagged then
-                        print("[RemoteBlocker] Blocked: " .. full .. " (" .. method .. ")")
-                        return nil
-                    end
-                end
-            end
+            -- AntiCheat bypass removed
 
             local function getClosestPlayer()
                 local cam = workspace.CurrentCamera
