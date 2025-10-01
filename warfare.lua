@@ -35,37 +35,6 @@ local function cleanup()
         end)
         getgenv().WarfareTycoon.ScreenGui = nil
     end
-
--- ===== MISC TAB =====
-do
-    -- Remote Logger Toggle (F9 console)
-    getgenv().WarfareTycoon.Enabled.RemoteLogger = false
-    createToggle(MiscTab, "🛰️ Live Remote Logger (F9)", function(enabled)
-        getgenv().WarfareTycoon.Enabled.RemoteLogger = enabled
-        if enabled then
-            print("[Warfare Tycoon] Live Remote Logger: ON")
-        else
-            print("[Warfare Tycoon] Live Remote Logger: OFF")
-        end
-    end)
-
-    -- One-time scanner button
-    createButton(MiscTab, "🔎 Scan Remotes (prints to F9)", function()
-        local found = 0
-        local function scan(container)
-            for _, d in ipairs(container:GetDescendants()) do
-                if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("BindableEvent") or d:IsA("BindableFunction") then
-                    found += 1
-                    print(string.format("[SCAN] %s (%s)", d:GetFullName(), d.ClassName))
-                end
-            end
-        end
-        print("[SCAN] Scanning ReplicatedStorage and Workspace for remotes...")
-        pcall(function() scan(game:GetService("ReplicatedStorage")) end)
-        pcall(function() scan(workspace) end)
-        print("[SCAN] Done. Found " .. tostring(found) .. " remotes.")
-    end)
-end
     
     -- Disconnect all connections
     if getgenv().WarfareTycoon.Connections then
@@ -874,15 +843,43 @@ do
                 return closest
             end
 
-            -- Optional Remote Logger to F9
+            -- Optional Remote Logger to F9 (with arg previews)
             if getgenv().WarfareTycoon.Enabled and getgenv().WarfareTycoon.Enabled.RemoteLogger and (method == "FireServer" or method == "InvokeServer") then
                 pcall(function()
-                    local path = "[REMOTE] " .. (self and self.GetFullName and self:GetFullName() or tostring(self)) .. "(" .. method .. ")"
-                    local atypes = {}
+                    local function preview(v, depth)
+                        depth = depth or 0
+                        local t = typeof(v)
+                        if t == "string" then
+                            if #v > 120 then v = v:sub(1,117).."..." end
+                            return string.format('"%s"', v)
+                        elseif t == "number" or t == "boolean" then
+                            return tostring(v)
+                        elseif t == "Vector3" then
+                            return string.format("Vector3(%0.1f,%0.1f,%0.1f)", v.X, v.Y, v.Z)
+                        elseif t == "CFrame" then
+                            return "CFrame(...)"
+                        elseif t == "Instance" then
+                            return string.format("Instance<%s>:%s", v.ClassName, v:GetFullName())
+                        elseif t == "table" then
+                            if depth >= 1 then return "{...}" end
+                            local parts, n = {}, 0
+                            for k,val in pairs(v) do
+                                parts[#parts+1] = tostring(k).."="..preview(val, depth+1)
+                                n = n + 1
+                                if n >= 5 then break end
+                            end
+                            return "{"..table.concat(parts, ", ").."}"
+                        else
+                            return t
+                        end
+                    end
+                    local full = (self and self.GetFullName and self:GetFullName() or tostring(self))
+                    local atypes, apreviews = {}, {}
                     for i, a in ipairs(args) do
                         atypes[#atypes+1] = typeof(a)
+                        apreviews[#apreviews+1] = preview(a)
                     end
-                    print(path .. " args: { " .. table.concat(atypes, ", ") .. " }")
+                    print(string.format("[REMOTE] %s (%s) types: [ %s ] previews: [ %s ]", full, method, table.concat(atypes, ", "), table.concat(apreviews, ", ")))
                 end)
             end
 
@@ -1146,6 +1143,68 @@ end
 
 print("[Warfare Tycoon] Visual features loaded!")
 print("[Warfare Tycoon] Features: ESP (Box, Name, Health, Distance)")
+
+-- ===== MISC TAB =====
+do
+    -- Remote Logger Toggle (F9 console)
+    getgenv().WarfareTycoon.Enabled.RemoteLogger = getgenv().WarfareTycoon.Enabled.RemoteLogger or false
+    createToggle(MiscTab, "🛰️ Live Remote Logger (F9)", function(enabled)
+        getgenv().WarfareTycoon.Enabled.RemoteLogger = enabled
+        if enabled then
+            print("[Warfare Tycoon] Live Remote Logger: ON")
+        else
+            print("[Warfare Tycoon] Live Remote Logger: OFF")
+        end
+    end)
+
+    -- One-time scanner button
+    createButton(MiscTab, "🔎 Scan Remotes (prints to F9)", function()
+        local found = 0
+        local function scan(container)
+            for _, d in ipairs(container:GetDescendants()) do
+                if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("BindableEvent") or d:IsA("BindableFunction") then
+                    found += 1
+                    print(string.format("[SCAN] %s (%s)", d:GetFullName(), d.ClassName))
+                end
+            end
+        end
+        print("[SCAN] Scanning ReplicatedStorage and Workspace for remotes...")
+        pcall(function() scan(game:GetService("ReplicatedStorage")) end)
+        pcall(function() scan(workspace) end)
+        print("[SCAN] Done. Found " .. tostring(found) .. " remotes.")
+    end)
+
+    -- Money-related scanner button
+    createButton(MiscTab, "💰 Scan Money Remotes (F9)", function()
+        local moneyPatterns = {
+            "cash", "money", "coin", "coins", "gold", "bucks", "gem", "gems",
+            "buy", "upgrade", "purchase", "claim", "reward", "payout", "give", "add"
+        }
+        local function isMoneyLike(name)
+            local ln = string.lower(name or "")
+            for _, p in ipairs(moneyPatterns) do
+                if ln:find(p) then return true end
+            end
+            return false
+        end
+        local found = 0
+        local function scan(container)
+            for _, d in ipairs(container:GetDescendants()) do
+                if (d:IsA("RemoteEvent") or d:IsA("RemoteFunction")) and (isMoneyLike(d.Name) or isMoneyLike(d:GetFullName())) then
+                    found += 1
+                    print(string.format("[MONEY] %s (%s)", d:GetFullName(), d.ClassName))
+                end
+            end
+        end
+        print("[MONEY] Scanning common services for money remotes...")
+        pcall(function() scan(game:GetService("ReplicatedStorage")) end)
+        pcall(function() scan(workspace) end)
+        pcall(function() scan(game:GetService("Players")) end)
+        pcall(function() scan(game:GetService("StarterGui")) end)
+        pcall(function() scan(game:GetService("StarterPack")) end)
+        print("[MONEY] Done. Found " .. tostring(found) .. " candidates.")
+    end)
+end
 
 -- Minimize/Maximize functionality
 local isMinimized = false
