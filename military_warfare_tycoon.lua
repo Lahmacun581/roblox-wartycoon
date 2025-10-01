@@ -1,12 +1,12 @@
 --[[
     ╔═══════════════════════════════════════════════════════════╗
-    ║         Military Warfare Tycoon GUI v2.0                  ║
-    ║         Gelişmiş Remote Scanner + Auto Money Test         ║
+    ║         Military Warfare Tycoon GUI v3.0                  ║
+    ║    Ultimate Remote Scanner + Auto Features + Teleport     ║
     ║                  by Lahmacun581                           ║
     ╚═══════════════════════════════════════════════════════════╝
 ]]
 
-print("[Military Warfare Tycoon] Loading GUI v2.0...")
+print("[Military Warfare Tycoon] Loading GUI v3.0...")
 
 -- Services
 local Players = game:GetService("Players")
@@ -14,6 +14,18 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+-- Global state
+getgenv().MilitaryWarfare = getgenv().MilitaryWarfare or {
+    Version = "3.0",
+    AutoCollect = false,
+    RemoteSpy = false,
+    SpyConnections = {},
+    FoundRemotes = {},
+    AutoBuy = false
+}
 
 -- Cleanup eski GUI
 if PlayerGui:FindFirstChild("MilitaryWarfareGUI") then
@@ -30,8 +42,8 @@ ScreenGui.Parent = PlayerGui
 -- Ana Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 420, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -210, 0.5, -190)
+MainFrame.Size = UDim2.new(0, 600, 0, 550)
+MainFrame.Position = UDim2.new(0.5, -300, 0.5, -275)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -61,15 +73,31 @@ HeaderCorner.Parent = Header
 
 local Title = Instance.new("TextLabel")
 Title.Name = "Title"
-Title.Size = UDim2.new(1, -20, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Size = UDim2.new(0, 300, 1, 0)
+Title.Position = UDim2.new(0, 270, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "💰 Military Warfare Tycoon"
+Title.Text = "💰 Military Warfare Tycoon v3.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
+Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
+
+-- Status Label (header'da)
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Name = "Status"
+StatusLabel.Size = UDim2.new(0, 250, 0, 30)
+StatusLabel.Position = UDim2.new(0, 10, 0, 10)
+StatusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+StatusLabel.Text = "✅ v3.0 Hazır"
+StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 12
+StatusLabel.Parent = Header
+
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 6)
+StatusCorner.Parent = StatusLabel
 
 -- Close Button
 local CloseBtn = Instance.new("TextButton")
@@ -91,40 +119,95 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Content Area
-local Content = Instance.new("ScrollingFrame")
-Content.Name = "Content"
-Content.Size = UDim2.new(1, -20, 1, -70)
-Content.Position = UDim2.new(0, 10, 0, 60)
-Content.BackgroundTransparency = 1
-Content.BorderSizePixel = 0
-Content.ScrollBarThickness = 6
-Content.CanvasSize = UDim2.new(0, 0, 0, 0)
-Content.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Content.Parent = MainFrame
+-- Tab System
+local TabBar = Instance.new("Frame")
+TabBar.Name = "TabBar"
+TabBar.Size = UDim2.new(1, 0, 0, 40)
+TabBar.Position = UDim2.new(0, 0, 0, 50)
+TabBar.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+TabBar.BorderSizePixel = 0
+TabBar.Parent = MainFrame
 
-local ContentList = Instance.new("UIListLayout")
-ContentList.Padding = UDim.new(0, 10)
-ContentList.SortOrder = Enum.SortOrder.LayoutOrder
-ContentList.Parent = Content
+local TabList = Instance.new("UIListLayout")
+TabList.FillDirection = Enum.FillDirection.Horizontal
+TabList.Padding = UDim.new(0, 5)
+TabList.SortOrder = Enum.SortOrder.LayoutOrder
+TabList.Parent = TabBar
 
--- Status Label
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Name = "Status"
-StatusLabel.Size = UDim2.new(1, -10, 0, 30)
-StatusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-StatusLabel.Text = "🔍 Hazır - Remote'ları tara"
-StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.TextSize = 13
-StatusLabel.Parent = Content
+local TabPadding = Instance.new("UIPadding")
+TabPadding.PaddingLeft = UDim.new(0, 10)
+TabPadding.PaddingTop = UDim.new(0, 5)
+TabPadding.Parent = TabBar
 
-local StatusCorner = Instance.new("UICorner")
-StatusCorner.CornerRadius = UDim.new(0, 8)
-StatusCorner.Parent = StatusLabel
+-- Tab Content Container
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(1, -20, 1, -110)
+TabContainer.Position = UDim2.new(0, 10, 0, 100)
+TabContainer.BackgroundTransparency = 1
+TabContainer.Parent = MainFrame
+
+-- Helper: Update Status
+local function setStatus(msg, color)
+    StatusLabel.Text = msg
+    StatusLabel.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+end
+
+-- Helper: Create Tab
+local currentTab = nil
+local function createTab(name, icon)
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Name = name .. "Tab"
+    tabBtn.Size = UDim2.new(0, 130, 0, 30)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    tabBtn.Text = icon .. " " .. name
+    tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    tabBtn.Font = Enum.Font.GothamMedium
+    tabBtn.TextSize = 13
+    tabBtn.AutoButtonColor = false
+    tabBtn.Parent = TabBar
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = tabBtn
+    
+    local content = Instance.new("ScrollingFrame")
+    content.Name = name .. "Content"
+    content.Size = UDim2.new(1, 0, 1, 0)
+    content.BackgroundTransparency = 1
+    content.BorderSizePixel = 0
+    content.ScrollBarThickness = 6
+    content.CanvasSize = UDim2.new(0, 0, 0, 0)
+    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    content.Visible = false
+    content.Parent = TabContainer
+    
+    local contentList = Instance.new("UIListLayout")
+    contentList.Padding = UDim.new(0, 10)
+    contentList.SortOrder = Enum.SortOrder.LayoutOrder
+    contentList.Parent = content
+    
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, child in ipairs(TabContainer:GetChildren()) do
+            if child:IsA("ScrollingFrame") then child.Visible = false end
+        end
+        for _, btn in ipairs(TabBar:GetChildren()) do
+            if btn:IsA("TextButton") then
+                btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+                btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            end
+        end
+        content.Visible = true
+        tabBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+        tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        currentTab = content
+    end)
+    
+    return content
+end
 
 -- Helper: Create Button
-local function createButton(text, callback)
+local function createButton(parent, text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -10, 0, 40)
     btn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -133,7 +216,7 @@ local function createButton(text, callback)
     btn.Font = Enum.Font.GothamMedium
     btn.TextSize = 14
     btn.AutoButtonColor = true
-    btn.Parent = Content
+    btn.Parent = parent
     
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
@@ -149,7 +232,7 @@ local function createButton(text, callback)
 end
 
 -- Helper: Create TextBox
-local function createTextBox(placeholder)
+local function createTextBox(parent, placeholder)
     local box = Instance.new("TextBox")
     box.Size = UDim2.new(1, -10, 0, 40)
     box.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
@@ -159,7 +242,7 @@ local function createTextBox(placeholder)
     box.Font = Enum.Font.Gotham
     box.TextSize = 14
     box.ClearTextOnFocus = false
-    box.Parent = Content
+    box.Parent = parent
     
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
@@ -168,237 +251,362 @@ local function createTextBox(placeholder)
     return box
 end
 
--- Helper: Update Status
-local function setStatus(msg, color)
-    StatusLabel.Text = msg
-    StatusLabel.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+-- Helper: Create Toggle
+local function createToggle(parent, text, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -10, 0, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    frame.Parent = parent
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -60, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+    
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0, 45, 0, 25)
+    toggle.Position = UDim2.new(1, -50, 0.5, -12.5)
+    toggle.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    toggle.Text = "OFF"
+    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggle.Font = Enum.Font.GothamBold
+    toggle.TextSize = 11
+    toggle.Parent = frame
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 6)
+    toggleCorner.Parent = toggle
+    
+    local state = false
+    toggle.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            toggle.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            toggle.Text = "ON"
+        else
+            toggle.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            toggle.Text = "OFF"
+        end
+        callback(state)
+    end)
+    
+    return frame, toggle
 end
 
--- ===== REMOTE SCANNER =====
-local foundRemotes = {}
+-- Create Tabs
+local ScannerTab = createTab("Scanner", "🔍")
+local MoneyTab = createTab("Money", "💰")
+local TycoonTab = createTab("Tycoon", "🏭")
+local MiscTab = createTab("Misc", "⚙️")
 
-createButton("🔎 Remote'ları Tara (F9'a yazdır)", function()
-    foundRemotes = {}
+-- Show first tab
+ScannerTab.Visible = true
+for _, btn in ipairs(TabBar:GetChildren()) do
+    if btn:IsA("TextButton") and btn.Name == "ScannerTab" then
+        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        break
+    end
+end
+
+-- ===== SCANNER TAB =====
+createButton(ScannerTab, "🔎 Tüm Remote'ları Tara (F9)", function()
+    getgenv().MilitaryWarfare.FoundRemotes = {}
     setStatus("🔍 Taranıyor...", Color3.fromRGB(255, 200, 100))
     
     local count = 0
-    local function scan(container, containerName)
+    local containers = {ReplicatedStorage, workspace, game:GetService("Players")}
+    
+    print("\n[MWT] === FULL REMOTE SCAN ===")
+    for _, container in ipairs(containers) do
         for _, obj in ipairs(container:GetDescendants()) do
             if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
                 count = count + 1
-                local path = obj:GetFullName()
-                table.insert(foundRemotes, {obj = obj, path = path})
-                print(string.format("[REMOTE %d] %s (%s)", count, path, obj.ClassName))
+                table.insert(getgenv().MilitaryWarfare.FoundRemotes, {obj = obj, path = obj:GetFullName()})
+                print(string.format("[%d] %s (%s)", count, obj:GetFullName(), obj.ClassName))
             end
         end
     end
-    
-    print("\n[Military Warfare Tycoon] === REMOTE SCAN START ===")
-    pcall(function() scan(ReplicatedStorage, "ReplicatedStorage") end)
-    pcall(function() scan(workspace, "Workspace") end)
-    print(string.format("[Military Warfare Tycoon] === SCAN COMPLETE: %d remotes ===\n", count))
-    
-    setStatus(string.format("✅ %d remote bulundu (F9)", count), Color3.fromRGB(100, 255, 100))
+    print(string.format("[MWT] Found %d remotes\n", count))
+    setStatus(string.format("✅ %d remote bulundu", count), Color3.fromRGB(100, 255, 100))
 end)
 
--- ===== PARA İLE İLGİLİ REMOTE TARA =====
-createButton("💰 Para Remote'larını Tara", function()
-    setStatus("💰 Para remote'ları aranıyor...", Color3.fromRGB(255, 200, 100))
-    
-    local moneyKeywords = {
-        "cash", "money", "coin", "gold", "currency", "bucks", "gem",
-        "buy", "purchase", "claim", "reward", "collect", "give", "add", "grant"
+createButton(ScannerTab, "💰 Para Remote'larını Filtrele", function()
+    local keywords = {
+        "cash", "money", "coin", "gold", "currency", "gem", "dollar", "credit", "balance",
+        "buy", "purchase", "claim", "reward", "collect", "give", "add", "grant", "earn"
     }
     
     local function isMoneyRelated(name)
         local lower = name:lower()
-        for _, kw in ipairs(moneyKeywords) do
+        for _, kw in ipairs(keywords) do
             if lower:find(kw) then return true end
         end
         return false
     end
     
-    local moneyRemotes = {}
-    print("\n[Military Warfare Tycoon] === MONEY REMOTE SCAN ===")
-    for i, data in ipairs(foundRemotes) do
-        if isMoneyRelated(data.obj.Name) then
-            table.insert(moneyRemotes, data)
-            print(string.format("[MONEY] %s", data.path))
-        end
-    end
-    print(string.format("[Military Warfare Tycoon] === %d money-related remotes ===\n", #moneyRemotes))
-    
-    if #moneyRemotes > 0 then
-        setStatus(string.format("💰 %d para remote'u bulundu (F9)", #moneyRemotes), Color3.fromRGB(100, 255, 100))
-    else
-        setStatus("⚠️ Para remote'u bulunamadı", Color3.fromRGB(255, 100, 100))
-    end
-end)
-
--- ===== MANUEL REMOTE TETİKLEME =====
-local RemotePathBox = createTextBox("Remote path (örn: game.ReplicatedStorage.AddCash)")
-local AmountBox = createTextBox("Miktar (örn: 10000)")
-
-createButton("🚀 Remote'u Tetikle (FireServer)", function()
-    local path = RemotePathBox.Text
-    local amount = tonumber(AmountBox.Text)
-    
-    if path == "" then
-        setStatus("⚠️ Remote path gir!", Color3.fromRGB(255, 100, 100))
-        return
-    end
-    
-    if not amount then
-        setStatus("⚠️ Geçerli bir miktar gir!", Color3.fromRGB(255, 100, 100))
-        return
-    end
-    
-    setStatus("🚀 Gönderiliyor...", Color3.fromRGB(255, 200, 100))
-    
-    local success, err = pcall(function()
-        local remote = loadstring("return " .. path)()
-        if remote and (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
-            if remote:IsA("RemoteEvent") then
-                remote:FireServer(amount)
-                print(string.format("[FIRE] %s:FireServer(%d)", path, amount))
-            else
-                local result = remote:InvokeServer(amount)
-                print(string.format("[INVOKE] %s:InvokeServer(%d) = %s", path, amount, tostring(result)))
-            end
-            setStatus(string.format("✅ Gönderildi: %d", amount), Color3.fromRGB(100, 255, 100))
-        else
-            setStatus("❌ Remote bulunamadı!", Color3.fromRGB(255, 100, 100))
-        end
-    end)
-    
-    if not success then
-        setStatus("❌ Hata: " .. tostring(err), Color3.fromRGB(255, 100, 100))
-        warn("[ERROR]", err)
-    end
-end)
-
--- ===== GELİŞMİŞ OTOMATİK PARA EKLEME =====
-createButton("⚡ Akıllı Para Tara ve Dene (10000)", function()
-    setStatus("🔍 Akıllı tarama başlıyor...", Color3.fromRGB(255, 200, 100))
-    
-    local amount = 10000
-    local tried = 0
     local found = 0
+    print("\n[MWT] === MONEY REMOTES ===")
+    for _, data in ipairs(getgenv().MilitaryWarfare.FoundRemotes) do
+        if isMoneyRelated(data.obj.Name) then
+            found = found + 1
+            print(string.format("[MONEY %d] %s", found, data.path))
+        end
+    end
+    print(string.format("[MWT] %d money remotes\n", found))
+    setStatus(string.format("💰 %d para remote'u", found), Color3.fromRGB(100, 255, 100))
+end)
+
+createToggle(ScannerTab, "🛰️ Remote Spy (Gerçek Zamanlı)", function(enabled)
+    getgenv().MilitaryWarfare.RemoteSpy = enabled
+    if enabled then
+        print("\n[MWT] Remote Spy: ON")
+        setStatus("🛰️ Remote Spy aktif", Color3.fromRGB(100, 255, 100))
+        -- Hook all remotes
+        for _, data in ipairs(getgenv().MilitaryWarfare.FoundRemotes) do
+            local remote = data.obj
+            if remote:IsA("RemoteEvent") then
+                local conn = remote.OnClientEvent:Connect(function(...)
+                    print(string.format("[SPY] %s fired: %s", remote.Name, table.concat({...}, ", ")))
+                end)
+                table.insert(getgenv().MilitaryWarfare.SpyConnections, conn)
+            end
+        end
+    else
+        print("[MWT] Remote Spy: OFF")
+        setStatus("✅ v3.0 Hazır", Color3.fromRGB(100, 255, 100))
+        for _, conn in ipairs(getgenv().MilitaryWarfare.SpyConnections) do
+            conn:Disconnect()
+        end
+        getgenv().MilitaryWarfare.SpyConnections = {}
+    end
+end)
+
+-- ===== MONEY TAB =====
+local AmountBox = createTextBox(MoneyTab, "Miktar (varsayılan: 10000)")
+
+createButton(MoneyTab, "⚡ Akıllı Para Tara ve Dene", function()
+    local amount = tonumber(AmountBox.Text) or 10000
+    setStatus("⚡ Deneniyor...", Color3.fromRGB(255, 200, 100))
     
-    -- Genişletilmiş para anahtar kelimeleri
-    local moneyKeywords = {
-        "cash", "money", "coin", "gold", "currency", "bucks", "gem", "gems",
-        "dollar", "credit", "balance", "wallet", "fund", "payment",
-        "buy", "purchase", "claim", "reward", "collect", "give", "add", 
-        "grant", "earn", "gain", "receive", "award", "bonus", "payout"
+    local keywords = {
+        "cash", "money", "coin", "gold", "currency", "gem", "dollar", "credit", "balance",
+        "buy", "purchase", "claim", "reward", "collect", "give", "add", "grant", "earn", "payout"
     }
     
-    -- Argüman kombinasyonları
+    -- 20+ argüman kombinasyonu
     local argCombinations = {
-        {amount},                           -- Sadece miktar
-        {amount, "Cash"},                   -- Miktar + tip
+        {amount},
+        {amount, "Cash"},
         {amount, "Money"},
-        {"Cash", amount},                   -- Tip + miktar
+        {amount, "Coins"},
+        {"Cash", amount},
         {"Money", amount},
-        {LocalPlayer, amount},              -- Player + miktar
+        {LocalPlayer, amount},
         {amount, LocalPlayer},
-        {amount, true},                     -- Miktar + boolean
-        {amount, 1},                        -- Miktar + ID
-        {},                                 -- Argümansız (bazı remote'lar sabit değer verir)
+        {amount, true},
+        {amount, false},
+        {amount, 1},
+        {amount, 2},
+        {amount, "Player"},
+        {LocalPlayer.UserId, amount},
+        {amount, LocalPlayer.UserId},
+        {amount, "Grant"},
+        {amount, "Add"},
+        {amount, "Give"},
+        {true, amount},
+        {},
     }
     
     local function isMoneyRelated(name)
         local lower = name:lower()
-        for _, kw in ipairs(moneyKeywords) do
+        for _, kw in ipairs(keywords) do
             if lower:find(kw) then return true end
         end
         return false
     end
     
-    local function tryRemote(remote, args)
-        local success = pcall(function()
-            if remote:IsA("RemoteEvent") then
-                if #args > 0 then
-                    remote:FireServer(table.unpack(args))
-                else
-                    remote:FireServer()
-                end
-            elseif remote:IsA("RemoteFunction") then
-                if #args > 0 then
-                    remote:InvokeServer(table.unpack(args))
-                else
-                    remote:InvokeServer()
-                end
-            end
-        end)
-        return success
-    end
+    local found, tried = 0, 0
+    print(string.format("\n[MWT] === SMART MONEY TEST (Amount: %d) ===", amount))
     
-    print("\n[Military Warfare Tycoon] === SMART AUTO MONEY TEST ===")
-    print(string.format("[INFO] Testing with amount: %d", amount))
-    print("[INFO] Scanning all containers...")
-    
-    -- Tüm container'ları tara
-    local containers = {
-        ReplicatedStorage,
-        workspace,
-        game:GetService("Players"),
-        LocalPlayer:FindFirstChild("PlayerGui"),
-        LocalPlayer:FindFirstChild("Backpack")
-    }
-    
+    local containers = {ReplicatedStorage, workspace, game:GetService("Players"), LocalPlayer:FindFirstChild("PlayerGui")}
     for _, container in ipairs(containers) do
         if container then
             for _, obj in ipairs(container:GetDescendants()) do
                 if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and isMoneyRelated(obj.Name) then
                     found = found + 1
-                    local remotePath = obj:GetFullName()
-                    print(string.format("\n[FOUND %d] %s (%s)", found, remotePath, obj.ClassName))
+                    print(string.format("\n[FOUND %d] %s", found, obj:GetFullName()))
                     
-                    -- Her argüman kombinasyonunu dene
                     for i, args in ipairs(argCombinations) do
                         tried = tried + 1
-                        local argsStr = "no args"
-                        if #args > 0 then
-                            local argStrs = {}
-                            for _, arg in ipairs(args) do
-                                table.insert(argStrs, tostring(arg))
+                        pcall(function()
+                            if obj:IsA("RemoteEvent") then
+                                if #args > 0 then obj:FireServer(table.unpack(args)) else obj:FireServer() end
+                            else
+                                if #args > 0 then obj:InvokeServer(table.unpack(args)) else obj:InvokeServer() end
                             end
-                            argsStr = table.concat(argStrs, ", ")
-                        end
-                        
-                        local success = tryRemote(obj, args)
-                        if success then
-                            print(string.format("  [TRY %d] ✓ Args: %s", i, argsStr))
-                        else
-                            print(string.format("  [TRY %d] ✗ Args: %s", i, argsStr))
-                        end
-                        
-                        task.wait(0.05) -- Spam korumasını atlamak için küçük gecikme
+                        end)
+                        local argsStr = #args > 0 and table.concat(args, ", ") or "no args"
+                        print(string.format("  [%d] %s", i, argsStr))
+                        task.wait(0.03)
                     end
                 end
             end
         end
     end
     
-    print(string.format("\n[COMPLETE] Found %d money remotes, tried %d combinations", found, tried))
+    print(string.format("\n[MWT] Complete: %d remotes, %d attempts\n", found, tried))
+    setStatus(string.format("✅ %d remote, %d deneme", found, tried), Color3.fromRGB(100, 255, 100))
+end)
+
+local RemotePathBox = createTextBox(MoneyTab, "Remote path (örn: game.ReplicatedStorage.AddCash)")
+
+createButton(MoneyTab, "🚀 Manuel Remote Tetikle", function()
+    local path = RemotePathBox.Text
+    local amount = tonumber(AmountBox.Text) or 10000
     
-    if found > 0 then
-        setStatus(string.format("✅ %d remote bulundu, %d deneme yapıldı", found, tried), Color3.fromRGB(100, 255, 100))
-    else
-        setStatus("⚠️ Para remote'u bulunamadı", Color3.fromRGB(255, 150, 100))
+    if path == "" then
+        setStatus("⚠️ Remote path gir!", Color3.fromRGB(255, 100, 100))
+        return
+    end
+    
+    local success, err = pcall(function()
+        local remote = loadstring("return " .. path)()
+        if remote and (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(amount)
+            else
+                remote:InvokeServer(amount)
+            end
+            print(string.format("[MANUAL] %s(%d)", path, amount))
+            setStatus("✅ Gönderildi", Color3.fromRGB(100, 255, 100))
+        else
+            setStatus("❌ Remote bulunamadı", Color3.fromRGB(255, 100, 100))
+        end
+    end)
+    
+    if not success then
+        setStatus("❌ Hata", Color3.fromRGB(255, 100, 100))
+        warn(err)
     end
 end)
 
--- ===== KLAVYE KISAYOLU (T = TOGGLE) =====
+-- ===== TYCOON TAB =====
+createToggle(TycoonTab, "🤖 Auto Collect (Tycoon Paraları)", function(enabled)
+    getgenv().MilitaryWarfare.AutoCollect = enabled
+    if enabled then
+        setStatus("🤖 Auto Collect: ON", Color3.fromRGB(100, 255, 100))
+        spawn(function()
+            while getgenv().MilitaryWarfare.AutoCollect do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj.Name:lower():find("collect") or obj.Name:lower():find("cash") or obj.Name:lower():find("money") then
+                            if obj:IsA("Part") or obj:IsA("MeshPart") then
+                                local char = LocalPlayer.Character
+                                if char and char:FindFirstChild("HumanoidRootPart") then
+                                    firetouchinterest(char.HumanoidRootPart, obj, 0)
+                                    firetouchinterest(char.HumanoidRootPart, obj, 1)
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    else
+        setStatus("✅ v3.0 Hazır", Color3.fromRGB(100, 255, 100))
+    end
+end)
+
+createButton(TycoonTab, "🏗️ Tüm Upgrade'leri Tara", function()
+    local found = 0
+    print("\n[MWT] === UPGRADE SCAN ===")
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name:lower():find("upgrade") or obj.Name:lower():find("buy") or obj.Name:lower():find("button") then
+            if obj:IsA("ClickDetector") or obj:IsA("ProximityPrompt") then
+                found = found + 1
+                print(string.format("[%d] %s", found, obj:GetFullName()))
+            end
+        end
+    end
+    print(string.format("[MWT] %d upgrades found\n", found))
+    setStatus(string.format("🏗️ %d upgrade bulundu", found), Color3.fromRGB(100, 255, 100))
+end)
+
+createToggle(TycoonTab, "⚙️ Auto Buy (Tüm Upgrade'ler)", function(enabled)
+    getgenv().MilitaryWarfare.AutoBuy = enabled
+    if enabled then
+        setStatus("⚙️ Auto Buy: ON", Color3.fromRGB(100, 255, 100))
+        spawn(function()
+            while getgenv().MilitaryWarfare.AutoBuy do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("ClickDetector") then
+                            if obj.Parent and (obj.Parent.Name:lower():find("buy") or obj.Parent.Name:lower():find("upgrade")) then
+                                fireclickdetector(obj)
+                            end
+                        elseif obj:IsA("ProximityPrompt") then
+                            fireproximityprompt(obj)
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    else
+        setStatus("✅ v3.0 Hazır", Color3.fromRGB(100, 255, 100))
+    end
+end)
+
+-- ===== MISC TAB =====
+createButton(MiscTab, "🔄 Rejoin Server", function()
+    game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end)
+
+createButton(MiscTab, "🌐 Server Hop (Yeni Server)", function()
+    local TeleportService = game:GetService("TeleportService")
+    local servers = game:GetService("HttpService"):JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+    for _, server in ipairs(servers.data) do
+        if server.id ~= game.JobId then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+            break
+        end
+    end
+end)
+
+createButton(MiscTab, "📋 Copy Remote Listesi", function()
+    local list = {}
+    for i, data in ipairs(getgenv().MilitaryWarfare.FoundRemotes) do
+        table.insert(list, data.path)
+    end
+    setclipboard(table.concat(list, "\n"))
+    setStatus("📋 Kopyalandı!", Color3.fromRGB(100, 255, 100))
+end)
+
+createButton(MiscTab, "🗑️ GUI'yi Kapat", function()
+    ScreenGui:Destroy()
+end)
+
+-- Klavye kısayolu
 local visible = true
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
     if input.KeyCode == Enum.KeyCode.T then
         visible = not visible
         MainFrame.Visible = visible
     end
 end)
 
-print("[Military Warfare Tycoon] GUI loaded! Press T to toggle.")
-setStatus("✅ Hazır - T ile aç/kapat", Color3.fromRGB(100, 255, 100))
+print("[Military Warfare Tycoon] GUI v3.0 loaded! Press T to toggle.")
+setStatus("✅ v3.0 Hazır - T ile aç/kapat", Color3.fromRGB(100, 255, 100))
