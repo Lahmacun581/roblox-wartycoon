@@ -36,6 +36,105 @@ local function cleanup()
         getgenv().WarfareTycoon.ScreenGui = nil
     end
     
+    -- Item ESP
+    do
+        getgenv().WarfareTycoon.ItemESPObjects = getgenv().WarfareTycoon.ItemESPObjects or {}
+        local ItemESPEnabled = false
+        local patterns = {
+            "cash", "money", "coin", "coins", "gold", "bucks", "gem", "gems",
+            "weapon", "gun", "crate", "drop", "supply", "ammo"
+        }
+        local function isItemLike(name)
+            local ln = string.lower(name or "")
+            for _, p in ipairs(patterns) do
+                if ln:find(p) then return true end
+            end
+            return false
+        end
+
+        local function ensureEspFor(inst)
+            if getgenv().WarfareTycoon.ItemESPObjects[inst] then return end
+            local billboard = Instance.new("BillboardGui")
+            billboard.AlwaysOnTop = true
+            billboard.Size = UDim2.new(0, 120, 0, 40)
+            billboard.StudsOffset = Vector3.new(0, 2, 0)
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = inst.Name
+            label.TextColor3 = Color3.fromRGB(255, 255, 0)
+            label.TextSize = 13
+            label.Font = Enum.Font.GothamBold
+            label.TextStrokeTransparency = 0
+            label.Parent = billboard
+
+            local adornee
+            if inst:IsA("BasePart") then
+                adornee = inst
+            elseif inst:IsA("Model") then
+                adornee = inst:FindFirstChildWhichIsA("BasePart")
+            end
+            if not adornee then return end
+
+            billboard.Adornee = adornee
+            billboard.Parent = adornee
+
+            local hl = Instance.new("Highlight")
+            hl.FillTransparency = 0.8
+            hl.OutlineTransparency = 0
+            hl.FillColor = Color3.fromRGB(255, 255, 0)
+            hl.OutlineColor = Color3.fromRGB(0, 0, 0)
+            hl.Parent = inst
+
+            getgenv().WarfareTycoon.ItemESPObjects[inst] = {billboard = billboard, highlight = hl}
+        end
+
+        local function clearItemESP()
+            for inst, data in pairs(getgenv().WarfareTycoon.ItemESPObjects) do
+                pcall(function()
+                    if data.billboard then data.billboard:Destroy() end
+                    if data.highlight then data.highlight:Destroy() end
+                end)
+            end
+            getgenv().WarfareTycoon.ItemESPObjects = {}
+        end
+
+        createToggle(VisualsTab, "📦 Item ESP", function(enabled)
+            ItemESPEnabled = enabled
+            if not enabled then
+                clearItemESP()
+            end
+        end)
+
+        -- Scan periodically when enabled
+        local scanTick = 0
+        RunService.Heartbeat:Connect(function()
+            if not ItemESPEnabled then return end
+            scanTick += 1
+            if scanTick % 20 ~= 0 then return end -- ~3x/sec
+
+            pcall(function()
+                for _, d in ipairs(workspace:GetDescendants()) do
+                    if (d:IsA("BasePart") or d:IsA("Model")) and isItemLike(d.Name) then
+                        ensureEspFor(d)
+                    end
+                end
+            end)
+
+            -- Clean up missing instances
+            for inst, data in pairs(getgenv().WarfareTycoon.ItemESPObjects) do
+                if typeof(inst) ~= "Instance" or not inst.Parent then
+                    pcall(function()
+                        if data.billboard then data.billboard:Destroy() end
+                        if data.highlight then data.highlight:Destroy() end
+                    end)
+                    getgenv().WarfareTycoon.ItemESPObjects[inst] = nil
+                end
+            end
+        end)
+    end
+
     -- Disconnect all connections
     if getgenv().WarfareTycoon.Connections then
         for _, conn in pairs(getgenv().WarfareTycoon.Connections) do
@@ -60,6 +159,87 @@ local function cleanup()
     getgenv().WarfareTycoon.Enabled = {}
     
     print("[Warfare Tycoon] Cleanup complete!")
+end
+
+-- ===== PLAYER TAB =====
+do
+    -- Defaults
+    getgenv().WarfareTycoon.PlayerWalkSpeed = getgenv().WarfareTycoon.PlayerWalkSpeed or 16
+    getgenv().WarfareTycoon.PlayerJumpPower = getgenv().WarfareTycoon.PlayerJumpPower or 50
+    getgenv().WarfareTycoon.Enabled.Spectate = getgenv().WarfareTycoon.Enabled.Spectate or false
+    getgenv().WarfareTycoon._SpectateIndex = getgenv().WarfareTycoon._SpectateIndex or 1
+
+    local function applyPlayerStats()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            pcall(function()
+                hum.WalkSpeed = getgenv().WarfareTycoon.PlayerWalkSpeed
+                hum.JumpPower = getgenv().WarfareTycoon.PlayerJumpPower
+            end)
+        end
+    end
+
+    -- Reapply on spawn
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(0.25)
+        applyPlayerStats()
+    end)
+    applyPlayerStats()
+
+    -- WalkSpeed Slider
+    createSlider(PlayerTab, "🏃 WalkSpeed", 10, 150, getgenv().WarfareTycoon.PlayerWalkSpeed, function(v)
+        getgenv().WarfareTycoon.PlayerWalkSpeed = v
+        applyPlayerStats()
+    end)
+
+    -- JumpPower Slider
+    createSlider(PlayerTab, "🦘 JumpPower", 25, 200, getgenv().WarfareTycoon.PlayerJumpPower, function(v)
+        getgenv().WarfareTycoon.PlayerJumpPower = v
+        applyPlayerStats()
+    end)
+
+    -- Spectate Controls
+    createToggle(PlayerTab, "🎥 Spectate", function(enabled)
+        getgenv().WarfareTycoon.Enabled.Spectate = enabled
+        if not enabled then
+            -- Reset camera to player
+            workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") or workspace.CurrentCamera.CameraSubject
+        end
+    end)
+
+    createButton(PlayerTab, "◀ Prev Target", function()
+        local list = Players:GetPlayers()
+        if #list == 0 then return end
+        getgenv().WarfareTycoon._SpectateIndex = ((getgenv().WarfareTycoon._SpectateIndex - 2) % #list) + 1
+    end)
+
+    createButton(PlayerTab, "Next Target ▶", function()
+        local list = Players:GetPlayers()
+        if #list == 0 then return end
+        getgenv().WarfareTycoon._SpectateIndex = (getgenv().WarfareTycoon._SpectateIndex % #list) + 1
+    end)
+
+    -- Update spectate target
+    RunService.RenderStepped:Connect(function()
+        if not getgenv().WarfareTycoon.Enabled.Spectate then return end
+        local list = Players:GetPlayers()
+        if #list < 2 then return end
+        local idx = getgenv().WarfareTycoon._SpectateIndex
+        local target = list[idx]
+        if target == LocalPlayer then
+            idx = (idx % #list) + 1
+            target = list[idx]
+            getgenv().WarfareTycoon._SpectateIndex = idx
+        end
+        if target and target.Character then
+            local hum = target.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                workspace.CurrentCamera.CameraSubject = hum
+            end
+        end
+    end)
 end
 
 -- Cleanup old GUI if exists
@@ -900,6 +1080,49 @@ do
             return oldNamecall(self, ...)
         end)
     end
+    
+    -- Triggerbot
+    getgenv().WarfareTycoon.Enabled.Triggerbot = false
+    createToggle(CombatTab, "🧠 Triggerbot", function(enabled)
+        getgenv().WarfareTycoon.Enabled.Triggerbot = enabled
+    end)
+
+    local mouse = LocalPlayer:GetMouse()
+    local lastFire = 0
+    RunService.RenderStepped:Connect(function()
+        if not getgenv().WarfareTycoon.Enabled.Triggerbot then return end
+        local cam = workspace.CurrentCamera
+        if not cam then return end
+        -- Raycast towards mouse
+        local origin = cam.CFrame.Position
+        local dir = (mouse.Hit and (mouse.Hit.p - origin).Unit or cam.CFrame.LookVector) * 1000
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = {LocalPlayer.Character}
+        params.FilterType = Enum.RaycastFilterType.Blacklist
+        local result = workspace:Raycast(origin, dir, params)
+        if result and result.Instance then
+            local inst = result.Instance
+            local model = inst:FindFirstAncestorOfClass("Model")
+            if model and model ~= LocalPlayer.Character then
+                local hum = model:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    local t = tick()
+                    if t - lastFire > 0.12 then
+                        lastFire = t
+                        -- Activate current tool if any
+                        local char = LocalPlayer.Character
+                        if char then
+                            for _, tool in ipairs(char:GetChildren()) do
+                                if tool:IsA("Tool") then
+                                    pcall(function() tool:Activate() end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
 end
 
 -- ===== VISUALS TAB =====
