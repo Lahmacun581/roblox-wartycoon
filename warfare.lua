@@ -826,10 +826,16 @@ do
                             obj.Value = 0
                         end
                     end
-                    -- Infinite Range
+                    -- Infinite Range (stronger)
                     if getgenv().WarfareTycoon.Enabled.InfiniteRange then
-                        if string.find(n, "range") or string.find(n, "distance") then
+                        if n:find("range") or n:find("distance") or n:find("maxdistance") or n:find("max_distance") or n:find("raylength") or n:find("ray_distance") then
                             obj.Value = 999999
+                        elseif n:find("projectile") and n:find("speed") or n:find("bullet") and (n:find("speed") or n:find("velocity")) then
+                            obj.Value = 10000
+                        elseif n:find("gravity") or n:find("drop") then
+                            obj.Value = 0
+                        elseif n:find("penetration") then
+                            obj.Value = 9999
                         end
                     end
                 end
@@ -846,8 +852,16 @@ do
                         if getgenv().WarfareTycoon.Enabled.FastReload and (lk:find("reload") or lk:find("eject") or lk:find("pump")) then
                             tool:SetAttribute(k, 0)
                         end
-                        if getgenv().WarfareTycoon.Enabled.InfiniteRange and (lk:find("range") or lk:find("distance")) then
-                            tool:SetAttribute(k, 999999)
+                        if getgenv().WarfareTycoon.Enabled.InfiniteRange then
+                            if lk:find("range") or lk:find("distance") or lk:find("maxdistance") or lk:find("raylength") then
+                                tool:SetAttribute(k, 999999)
+                            elseif (lk:find("projectile") and lk:find("speed")) or (lk:find("bullet") and (lk:find("speed") or lk:find("velocity"))) then
+                                tool:SetAttribute(k, 10000)
+                            elseif lk:find("gravity") or lk:find("drop") then
+                                tool:SetAttribute(k, 0)
+                            elseif lk:find("penetration") then
+                                tool:SetAttribute(k, 9999)
+                            end
                         end
                     end
                 end
