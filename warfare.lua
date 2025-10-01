@@ -36,6 +36,7 @@ local function cleanup()
         end)
         getgenv().WarfareTycoon.ScreenGui = nil
     end
+
     
     -- (moved) Item ESP is initialized under the Visuals section
 
@@ -1501,6 +1502,98 @@ do
 end
 
 -- Minimize/Maximize functionality
+-- ===== PLAYER: BRING SYSTEM =====
+do
+    local bringTargets = {}
+    local function refreshPlayers()
+        bringTargets = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then table.insert(bringTargets, p.Name) end
+        end
+        if #bringTargets == 0 then table.insert(bringTargets, "<no players>") end
+    end
+    refreshPlayers()
+
+    local selectedTarget = bringTargets[1]
+    createButton(PlayerTab, "🔄 Refresh Players", function()
+        refreshPlayers()
+        print("[Bring] Refreshed player list")
+    end)
+    createDropdown(PlayerTab, "🎯 Bring Target", bringTargets, function(v)
+        selectedTarget = v
+    end)
+
+    local function findTeleportRemote()
+        local candidates = {}
+        local patterns = {"teleport", "bring", "pull", "summon", "tp", "warp"}
+        local function isTpLike(name)
+            local ln = string.lower(name or "")
+            for _, p in ipairs(patterns) do if ln:find(p) then return true end end
+            return false
+        end
+        local function scan(container)
+            for _, d in ipairs(container:GetDescendants()) do
+                if (d:IsA("RemoteEvent") or d:IsA("RemoteFunction")) and isTpLike(d.Name) then
+                    table.insert(candidates, d)
+                end
+            end
+        end
+        pcall(function() scan(game:GetService("ReplicatedStorage")) end)
+        pcall(function() scan(workspace) end)
+        return candidates
+    end
+
+    local function tryServerBring(targetPlayer)
+        local remotes = findTeleportRemote()
+        if #remotes == 0 then return false end
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return false end
+        local pos = hrp.CFrame * CFrame.new(0, 0, -3)
+        for _, r in ipairs(remotes) do
+            pcall(function() r:FireServer(targetPlayer, pos) end)
+            pcall(function() r:FireServer(targetPlayer, pos.Position) end)
+            pcall(function() r:FireServer(targetPlayer, hrp.Position) end)
+            pcall(function() r:FireServer({target = targetPlayer, cframe = pos}) end)
+        end
+        print("[Bring] Tried server-side bring via " .. tostring(#remotes) .. " remote(s)")
+        return true
+    end
+
+    local function clientOnlyBring(targetPlayer)
+        local meHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not meHrp then return end
+        if targetPlayer and targetPlayer.Character then
+            local thrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if thrp then
+                pcall(function()
+                    thrp.CFrame = meHrp.CFrame * CFrame.new(0, 0, -3)
+                end)
+            end
+        end
+    end
+
+    createButton(PlayerTab, "⛓️ Bring Selected", function()
+        if not selectedTarget or selectedTarget == "<no players>" then return end
+        local target = Players:FindFirstChild(selectedTarget)
+        if not target then print("[Bring] Target not found") return end
+        local ok = tryServerBring(target)
+        if not ok then clientOnlyBring(target) end
+    end)
+
+    createButton(PlayerTab, "🌐 Bring ALL", function()
+        local okAny = false
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                okAny = tryServerBring(p) or okAny
+            end
+        end
+        if not okAny then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then clientOnlyBring(p) end
+            end
+        end
+    end)
+end
 local isMinimized = false
 
 MinimizeBtn.MouseButton1Click:Connect(function()
