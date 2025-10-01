@@ -85,30 +85,25 @@ do
         end
     end
 
-    -- Reapply on spawn
     LocalPlayer.CharacterAdded:Connect(function()
         task.wait(0.25)
         applyPlayerStats()
     end)
     applyPlayerStats()
 
-    -- WalkSpeed Slider
     createSlider(PlayerTab, "🏃 WalkSpeed", 10, 150, getgenv().WarfareTycoon.PlayerWalkSpeed, function(v)
         getgenv().WarfareTycoon.PlayerWalkSpeed = v
         applyPlayerStats()
     end)
 
-    -- JumpPower Slider
     createSlider(PlayerTab, "🦘 JumpPower", 25, 200, getgenv().WarfareTycoon.PlayerJumpPower, function(v)
         getgenv().WarfareTycoon.PlayerJumpPower = v
         applyPlayerStats()
     end)
 
-    -- Spectate Controls
     createToggle(PlayerTab, "🎥 Spectate", function(enabled)
         getgenv().WarfareTycoon.Enabled.Spectate = enabled
         if not enabled then
-            -- Reset camera to player
             workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") or workspace.CurrentCamera.CameraSubject
         end
     end)
@@ -125,7 +120,6 @@ do
         getgenv().WarfareTycoon._SpectateIndex = (getgenv().WarfareTycoon._SpectateIndex % #list) + 1
     end)
 
-    -- Update spectate target
     RunService.RenderStepped:Connect(function()
         if not getgenv().WarfareTycoon.Enabled.Spectate then return end
         local list = Players:GetPlayers()
@@ -145,7 +139,6 @@ do
         end
     end)
 
-    -- TP helpers
     local function getHRP(character)
         return character and character:FindFirstChild("HumanoidRootPart")
     end
@@ -158,7 +151,6 @@ do
         end
     end
 
-    -- TP to Mouse
     createButton(PlayerTab, "📍 TP to Mouse", function()
         local mouse = LocalPlayer:GetMouse()
         local pos = mouse.Hit and mouse.Hit.p
@@ -167,10 +159,8 @@ do
         end
     end)
 
-    -- TP to My Tycoon (heuristic)
     createButton(PlayerTab, "🏭 TP to My Tycoon", function()
         local targetCF
-        -- Heuristic 1: Model with Owner attribute/name
         pcall(function()
             for _, m in ipairs(workspace:GetChildren()) do
                 if m:IsA("Model") then
@@ -183,7 +173,6 @@ do
                 end
             end
         end)
-        -- Heuristic 2: Nearest 'Tycoon' model
         if not targetCF then
             local nearest, best = nil, math.huge
             local myHrp = getHRP(LocalPlayer.Character)
@@ -201,7 +190,6 @@ do
         tpTo(targetCF)
     end)
 
-    -- TP to Spectate Target
     createButton(PlayerTab, "🎯 TP to Spectate Target", function()
         local list = Players:GetPlayers()
         local idx = getgenv().WarfareTycoon._SpectateIndex
@@ -214,6 +202,7 @@ do
         end
     end)
 end
+-- (removed: moved PLAYER TAB below)
 
 -- (moved) Player tab content is initialized later, after tabs are created
 
