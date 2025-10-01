@@ -972,9 +972,11 @@ do
     end)
 
     if not getgenv().WarfareTycoon._SilentAimHooked then
-        getgenv().WarfareTycoon._SilentAimHooked = true
-        local oldNamecall
-        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        -- Only try to hook if hookmetamethod exists (executor API)
+        if typeof(hookmetamethod) == "function" then
+            getgenv().WarfareTycoon._SilentAimHooked = true
+            local oldNamecall
+            oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
             local args = {...}
             local method = getnamecallmethod and getnamecallmethod() or ""
 
@@ -1080,7 +1082,10 @@ do
             end
 
             return oldNamecall(self, ...)
-        end)
+            end)
+        else
+            print("[Warfare Tycoon] hookmetamethod not available; SilentAim/Remote logger/AntiKick via hook disabled.")
+        end
     end
     
     -- Triggerbot
