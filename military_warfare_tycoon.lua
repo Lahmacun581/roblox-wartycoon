@@ -1,12 +1,12 @@
 --[[
     ╔═══════════════════════════════════════════════════════════╗
-    ║         Military Warfare Tycoon GUI v1.0                  ║
-    ║              Para Ekleme + Remote Scanner                 ║
+    ║         Military Warfare Tycoon GUI v2.0                  ║
+    ║         Gelişmiş Remote Scanner + Auto Money Test         ║
     ║                  by Lahmacun581                           ║
     ╚═══════════════════════════════════════════════════════════╝
 ]]
 
-print("[Military Warfare Tycoon] Loading GUI v1.0...")
+print("[Military Warfare Tycoon] Loading GUI v2.0...")
 
 -- Services
 local Players = game:GetService("Players")
@@ -277,38 +277,116 @@ createButton("🚀 Remote'u Tetikle (FireServer)", function()
     end
 end)
 
--- ===== OTOMATİK PARA EKLEME DENEMESİ =====
-createButton("⚡ Otomatik Para Ekle (Deneme)", function()
-    setStatus("⚡ Deneniyor...", Color3.fromRGB(255, 200, 100))
+-- ===== GELİŞMİŞ OTOMATİK PARA EKLEME =====
+createButton("⚡ Akıllı Para Tara ve Dene (10000)", function()
+    setStatus("🔍 Akıllı tarama başlıyor...", Color3.fromRGB(255, 200, 100))
     
-    local amount = tonumber(AmountBox.Text) or 10000
+    local amount = 10000
     local tried = 0
-    local success = false
+    local found = 0
     
-    -- Yaygın remote isimleri
-    local commonNames = {
-        "AddCash", "AddMoney", "GiveCash", "GiveMoney", "ClaimReward",
-        "CollectCash", "BuyCash", "PurchaseCash", "GrantCash"
+    -- Genişletilmiş para anahtar kelimeleri
+    local moneyKeywords = {
+        "cash", "money", "coin", "gold", "currency", "bucks", "gem", "gems",
+        "dollar", "credit", "balance", "wallet", "fund", "payment",
+        "buy", "purchase", "claim", "reward", "collect", "give", "add", 
+        "grant", "earn", "gain", "receive", "award", "bonus", "payout"
     }
     
-    for _, name in ipairs(commonNames) do
-        for _, container in ipairs({ReplicatedStorage, workspace}) do
-            local remote = container:FindFirstChild(name, true)
-            if remote and remote:IsA("RemoteEvent") then
-                tried = tried + 1
-                pcall(function()
-                    remote:FireServer(amount)
-                    print(string.format("[AUTO] Tried: %s:FireServer(%d)", remote:GetFullName(), amount))
-                    success = true
-                end)
+    -- Argüman kombinasyonları
+    local argCombinations = {
+        {amount},                           -- Sadece miktar
+        {amount, "Cash"},                   -- Miktar + tip
+        {amount, "Money"},
+        {"Cash", amount},                   -- Tip + miktar
+        {"Money", amount},
+        {LocalPlayer, amount},              -- Player + miktar
+        {amount, LocalPlayer},
+        {amount, true},                     -- Miktar + boolean
+        {amount, 1},                        -- Miktar + ID
+        {},                                 -- Argümansız (bazı remote'lar sabit değer verir)
+    }
+    
+    local function isMoneyRelated(name)
+        local lower = name:lower()
+        for _, kw in ipairs(moneyKeywords) do
+            if lower:find(kw) then return true end
+        end
+        return false
+    end
+    
+    local function tryRemote(remote, args)
+        local success = pcall(function()
+            if remote:IsA("RemoteEvent") then
+                if #args > 0 then
+                    remote:FireServer(table.unpack(args))
+                else
+                    remote:FireServer()
+                end
+            elseif remote:IsA("RemoteFunction") then
+                if #args > 0 then
+                    remote:InvokeServer(table.unpack(args))
+                else
+                    remote:InvokeServer()
+                end
+            end
+        end)
+        return success
+    end
+    
+    print("\n[Military Warfare Tycoon] === SMART AUTO MONEY TEST ===")
+    print(string.format("[INFO] Testing with amount: %d", amount))
+    print("[INFO] Scanning all containers...")
+    
+    -- Tüm container'ları tara
+    local containers = {
+        ReplicatedStorage,
+        workspace,
+        game:GetService("Players"),
+        LocalPlayer:FindFirstChild("PlayerGui"),
+        LocalPlayer:FindFirstChild("Backpack")
+    }
+    
+    for _, container in ipairs(containers) do
+        if container then
+            for _, obj in ipairs(container:GetDescendants()) do
+                if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and isMoneyRelated(obj.Name) then
+                    found = found + 1
+                    local remotePath = obj:GetFullName()
+                    print(string.format("\n[FOUND %d] %s (%s)", found, remotePath, obj.ClassName))
+                    
+                    -- Her argüman kombinasyonunu dene
+                    for i, args in ipairs(argCombinations) do
+                        tried = tried + 1
+                        local argsStr = "no args"
+                        if #args > 0 then
+                            local argStrs = {}
+                            for _, arg in ipairs(args) do
+                                table.insert(argStrs, tostring(arg))
+                            end
+                            argsStr = table.concat(argStrs, ", ")
+                        end
+                        
+                        local success = tryRemote(obj, args)
+                        if success then
+                            print(string.format("  [TRY %d] ✓ Args: %s", i, argsStr))
+                        else
+                            print(string.format("  [TRY %d] ✗ Args: %s", i, argsStr))
+                        end
+                        
+                        task.wait(0.05) -- Spam korumasını atlamak için küçük gecikme
+                    end
+                end
             end
         end
     end
     
-    if success then
-        setStatus(string.format("✅ %d remote denendi", tried), Color3.fromRGB(100, 255, 100))
+    print(string.format("\n[COMPLETE] Found %d money remotes, tried %d combinations", found, tried))
+    
+    if found > 0 then
+        setStatus(string.format("✅ %d remote bulundu, %d deneme yapıldı", found, tried), Color3.fromRGB(100, 255, 100))
     else
-        setStatus("⚠️ Hiçbir remote bulunamadı", Color3.fromRGB(255, 150, 100))
+        setStatus("⚠️ Para remote'u bulunamadı", Color3.fromRGB(255, 150, 100))
     end
 end)
 
