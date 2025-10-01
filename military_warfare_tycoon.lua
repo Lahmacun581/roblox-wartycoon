@@ -469,6 +469,136 @@ createButton(MoneyTab, "⚡ Akıllı Para Tara ve Dene", function()
     setStatus(string.format("✅ %d remote, %d deneme", found, tried), Color3.fromRGB(100, 255, 100))
 end)
 
+createButton(MoneyTab, "🎯 DataHandler Remote'larını Dene", function()
+    local amount = tonumber(AmountBox.Text) or 10000
+    setStatus("🎯 DataHandler'lar deneniyor...", Color3.fromRGB(255, 200, 100))
+    
+    -- Bilinen DataHandler remote'ları
+    local dataHandlers = {
+        "dataHandler_9341237", "dataHandler_9879030", "dataHandler_5235357",
+        "dataHandler_6507857", "dataHandler_7707912", "dataHandler_4133473",
+        "dataHandler_6384480", "dataHandler_2772023", "dataHandler_5524901",
+        "dataHandler_3722364", "dataHandler_6948897", "dataHandler_8518108",
+        "dataHandler_7572474", "dataHandler_3288977", "dataHandler_5305658",
+        "dataHandler_5440748", "dataHandler_4692503", "dataHandler_8528604",
+        "dataHandler_8519813", "dataHandler_1263870", "DataHandler_8365882",
+        "DataHandler_360873", "DataHandler_069801", "DataHandler_865881",
+        "DataHandler_369899", "DataHandler_861817", "DataHandler_3GHIJKLMNOPQ4",
+        "DataHandler_483946", "DataHandler_739201", "DataHandler_827482",
+        "DataHandler_827843", "DataHandler_716259", "DataHandler_710450",
+        "DataHandler_702553", "DataHandler_723053", "DataHandler_754754"
+    }
+    
+    -- Argüman kombinasyonları (DataHandler'lar için özel)
+    local argSets = {
+        {"AddCash", amount},
+        {"AddMoney", amount},
+        {"GiveCash", amount},
+        {"SetCash", amount},
+        {"UpdateCash", amount},
+        {"Cash", amount},
+        {"Money", amount},
+        {amount, "Cash"},
+        {amount, "Money"},
+        {LocalPlayer, "Cash", amount},
+        {LocalPlayer, "Money", amount},
+        {"Cash", LocalPlayer, amount},
+        {LocalPlayer.UserId, amount},
+        {amount, LocalPlayer.UserId},
+        {"AddCurrency", amount},
+        {"Currency", amount},
+        {amount},
+    }
+    
+    local tried = 0
+    print("\n[MWT] === DATAHANDLER TEST ===")
+    print(string.format("[INFO] Amount: %d", amount))
+    
+    for _, handlerName in ipairs(dataHandlers) do
+        local remote = ReplicatedStorage:FindFirstChild(handlerName)
+        if not remote then
+            remote = ReplicatedStorage.Remotes:FindFirstChild(handlerName)
+        end
+        
+        if remote and (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
+            print(string.format("\n[FOUND] %s", handlerName))
+            
+            for i, args in ipairs(argSets) do
+                tried = tried + 1
+                pcall(function()
+                    if remote:IsA("RemoteEvent") then
+                        remote:FireServer(table.unpack(args))
+                    else
+                        remote:InvokeServer(table.unpack(args))
+                    end
+                end)
+                
+                local argsStr = table.concat(args, ", ")
+                print(string.format("  [%d] %s", i, argsStr))
+                task.wait(0.05)
+            end
+        end
+    end
+    
+    print(string.format("\n[MWT] DataHandler test complete: %d attempts\n", tried))
+    setStatus(string.format("✅ %d deneme yapıldı", tried), Color3.fromRGB(100, 255, 100))
+end)
+
+createButton(MoneyTab, "💎 CoreSync & PromptCashUI Dene", function()
+    local amount = tonumber(AmountBox.Text) or 10000
+    setStatus("💎 Özel remote'lar deneniyor...", Color3.fromRGB(255, 200, 100))
+    
+    local specialRemotes = {
+        {name = "CoreSync", args = {
+            {amount, "Cash"},
+            {"Cash", amount},
+            {"AddCash", amount},
+            {LocalPlayer, amount},
+        }},
+        {name = "PromptCashUI", args = {
+            {amount},
+            {amount, true},
+            {true, amount},
+        }},
+        {name = "StoreRecipient", args = {
+            {"Cash", amount},
+            {amount, "Cash"},
+        }},
+        {name = "UpdatePlayerSettings", args = {
+            {"Cash", amount},
+            {"Money", amount},
+        }},
+    }
+    
+    local tried = 0
+    print("\n[MWT] === SPECIAL REMOTES TEST ===")
+    
+    for _, remoteData in ipairs(specialRemotes) do
+        local remote = ReplicatedStorage:FindFirstChild(remoteData.name)
+        if remote and (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
+            print(string.format("\n[TESTING] %s", remoteData.name))
+            
+            for i, args in ipairs(remoteData.args) do
+                tried = tried + 1
+                pcall(function()
+                    if remote:IsA("RemoteEvent") then
+                        remote:FireServer(table.unpack(args))
+                    else
+                        remote:InvokeServer(table.unpack(args))
+                    end
+                end)
+                
+                local argsStr = table.concat(args, ", ")
+                print(string.format("  [%d] %s", i, argsStr))
+                task.wait(0.05)
+            end
+        end
+    end
+    
+    print(string.format("\n[MWT] Special remotes test: %d attempts\n", tried))
+    setStatus(string.format("✅ %d deneme", tried), Color3.fromRGB(100, 255, 100))
+end)
+
 local RemotePathBox = createTextBox(MoneyTab, "Remote path (örn: game.ReplicatedStorage.AddCash)")
 
 createButton(MoneyTab, "🚀 Manuel Remote Tetikle", function()
