@@ -113,12 +113,30 @@ TitleBar.Parent = MainFrame
 
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 15)
 
+-- Gradient for Title Bar
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 70)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 50, 50))
+}
+TitleGradient.Rotation = 90
+TitleGradient.Parent = TitleBar
+
 local TitleFix = Instance.new("Frame")
 TitleFix.Size = UDim2.new(1, 0, 0, 25)
 TitleFix.Position = UDim2.new(0, 0, 1, -25)
 TitleFix.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
 TitleFix.BorderSizePixel = 0
 TitleFix.Parent = TitleBar
+
+-- Gradient for Fix
+local TitleFixGradient = Instance.new("UIGradient")
+TitleFixGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 70)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 50, 50))
+}
+TitleFixGradient.Rotation = 90
+TitleFixGradient.Parent = TitleFix
 
 -- Title Icon
 local TitleIcon = Instance.new("TextLabel")
@@ -146,30 +164,57 @@ TitleText.Parent = TitleBar
 -- Minimize Button
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Name = "MinimizeBtn"
-MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
-MinimizeBtn.Position = UDim2.new(1, -95, 0, 5)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-MinimizeBtn.Text = "−"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 20
-MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+MinimizeBtn.Position = UDim2.new(1, -90, 0, 7.5)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+MinimizeBtn.Text = ""
+MinimizeBtn.AutoButtonColor = false
 MinimizeBtn.Parent = TitleBar
 
 Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
 
+-- Minimize Icon (Line)
+local MinimizeIcon = Instance.new("Frame")
+MinimizeIcon.Size = UDim2.new(0, 16, 0, 2)
+MinimizeIcon.Position = UDim2.new(0.5, -8, 0.5, -1)
+MinimizeIcon.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeIcon.BorderSizePixel = 0
+MinimizeIcon.Parent = MinimizeBtn
+
+Instance.new("UICorner", MinimizeIcon).CornerRadius = UDim.new(0, 1)
+
 -- Close Button
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Name = "CloseBtn"
-CloseBtn.Size = UDim2.new(0, 40, 0, 40)
-CloseBtn.Position = UDim2.new(1, -50, 0, 5)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 20
-CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Size = UDim2.new(0, 35, 0, 35)
+CloseBtn.Position = UDim2.new(1, -50, 0, 7.5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CloseBtn.Text = ""
+CloseBtn.AutoButtonColor = false
 CloseBtn.Parent = TitleBar
 
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+
+-- Close Icon (X)
+local CloseIcon1 = Instance.new("Frame")
+CloseIcon1.Size = UDim2.new(0, 16, 0, 2)
+CloseIcon1.Position = UDim2.new(0.5, -8, 0.5, -1)
+CloseIcon1.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+CloseIcon1.BorderSizePixel = 0
+CloseIcon1.Rotation = 45
+CloseIcon1.Parent = CloseBtn
+
+Instance.new("UICorner", CloseIcon1).CornerRadius = UDim.new(0, 1)
+
+local CloseIcon2 = Instance.new("Frame")
+CloseIcon2.Size = UDim2.new(0, 16, 0, 2)
+CloseIcon2.Position = UDim2.new(0.5, -8, 0.5, -1)
+CloseIcon2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+CloseIcon2.BorderSizePixel = 0
+CloseIcon2.Rotation = -45
+CloseIcon2.Parent = CloseBtn
+
+Instance.new("UICorner", CloseIcon2).CornerRadius = UDim.new(0, 1)
 
 -- Content Container
 local ContentContainer = Instance.new("Frame")
@@ -182,17 +227,58 @@ ContentContainer.Parent = MainFrame
 
 Instance.new("UICorner", ContentContainer).CornerRadius = UDim.new(0, 12)
 
--- Welcome Text (Placeholder)
-local WelcomeText = Instance.new("TextLabel")
-WelcomeText.Size = UDim2.new(1, -40, 0, 100)
-WelcomeText.Position = UDim2.new(0, 20, 0, 150)
-WelcomeText.BackgroundTransparency = 1
-WelcomeText.Text = "🎮 Warfare Tycoon GUI v3.0\n\nFeatures will be added here...\n\nReady for development!"
-WelcomeText.TextColor3 = Color3.fromRGB(200, 200, 220)
-WelcomeText.TextSize = 18
-WelcomeText.Font = Enum.Font.Gotham
-WelcomeText.TextWrapped = true
-WelcomeText.Parent = ContentContainer
+-- Welcome Container
+local WelcomeContainer = Instance.new("Frame")
+WelcomeContainer.Size = UDim2.new(1, -40, 0, 200)
+WelcomeContainer.Position = UDim2.new(0, 20, 0, 100)
+WelcomeContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+WelcomeContainer.BorderSizePixel = 0
+WelcomeContainer.Parent = ContentContainer
+
+Instance.new("UICorner", WelcomeContainer).CornerRadius = UDim.new(0, 12)
+
+-- Gradient for Welcome Container
+local WelcomeGradient = Instance.new("UIGradient")
+WelcomeGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 30))
+}
+WelcomeGradient.Rotation = 45
+WelcomeGradient.Parent = WelcomeContainer
+
+-- Welcome Icon
+local WelcomeIcon = Instance.new("TextLabel")
+WelcomeIcon.Size = UDim2.new(0, 60, 0, 60)
+WelcomeIcon.Position = UDim2.new(0.5, -30, 0, 20)
+WelcomeIcon.BackgroundTransparency = 1
+WelcomeIcon.Text = "⚔️"
+WelcomeIcon.TextColor3 = Color3.fromRGB(255, 70, 70)
+WelcomeIcon.TextSize = 48
+WelcomeIcon.Font = Enum.Font.GothamBold
+WelcomeIcon.Parent = WelcomeContainer
+
+-- Welcome Title
+local WelcomeTitle = Instance.new("TextLabel")
+WelcomeTitle.Size = UDim2.new(1, -20, 0, 30)
+WelcomeTitle.Position = UDim2.new(0, 10, 0, 90)
+WelcomeTitle.BackgroundTransparency = 1
+WelcomeTitle.Text = "Warfare Tycoon GUI v3.0"
+WelcomeTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+WelcomeTitle.TextSize = 20
+WelcomeTitle.Font = Enum.Font.GothamBold
+WelcomeTitle.Parent = WelcomeContainer
+
+-- Welcome Subtitle
+local WelcomeSubtitle = Instance.new("TextLabel")
+WelcomeSubtitle.Size = UDim2.new(1, -20, 0, 60)
+WelcomeSubtitle.Position = UDim2.new(0, 10, 0, 125)
+WelcomeSubtitle.BackgroundTransparency = 1
+WelcomeSubtitle.Text = "Modern UI Design\nReady for feature development\nPress Right Shift to toggle"
+WelcomeSubtitle.TextColor3 = Color3.fromRGB(150, 150, 170)
+WelcomeSubtitle.TextSize = 14
+WelcomeSubtitle.Font = Enum.Font.Gotham
+WelcomeSubtitle.TextWrapped = true
+WelcomeSubtitle.Parent = WelcomeContainer
 
 -- Minimize/Maximize functionality
 local isMinimized = false
@@ -207,7 +293,10 @@ MinimizeBtn.MouseButton1Click:Connect(function()
         }):Play()
         
         ContentContainer.Visible = false
-        MinimizeBtn.Text = "□"
+        
+        -- Change icon to maximize (square)
+        MinimizeIcon.Size = UDim2.new(0, 12, 0, 12)
+        MinimizeIcon.Position = UDim2.new(0.5, -6, 0.5, -6)
         
         print("[Warfare Tycoon] GUI minimized")
     else
@@ -218,7 +307,10 @@ MinimizeBtn.MouseButton1Click:Connect(function()
         
         task.wait(0.3)
         ContentContainer.Visible = true
-        MinimizeBtn.Text = "−"
+        
+        -- Change icon back to minimize (line)
+        MinimizeIcon.Size = UDim2.new(0, 16, 0, 2)
+        MinimizeIcon.Position = UDim2.new(0.5, -8, 0.5, -1)
         
         print("[Warfare Tycoon] GUI maximized")
     end
@@ -263,8 +355,8 @@ local function addHoverEffect(button, normalColor, hoverColor)
     end)
 end
 
-addHoverEffect(MinimizeBtn, Color3.fromRGB(255, 200, 0), Color3.fromRGB(255, 220, 50))
-addHoverEffect(CloseBtn, Color3.fromRGB(200, 40, 40), Color3.fromRGB(220, 60, 60))
+addHoverEffect(MinimizeBtn, Color3.fromRGB(50, 50, 60), Color3.fromRGB(100, 100, 120))
+addHoverEffect(CloseBtn, Color3.fromRGB(50, 50, 60), Color3.fromRGB(220, 60, 60))
 
 -- Keybind to toggle GUI (Right Shift)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
