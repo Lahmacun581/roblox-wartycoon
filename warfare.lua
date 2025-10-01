@@ -65,143 +65,7 @@ local function cleanup()
     print("[Warfare Tycoon] Cleanup complete!")
 end
 
--- ===== PLAYER TAB =====
-do
-    -- Defaults
-    getgenv().WarfareTycoon.PlayerWalkSpeed = getgenv().WarfareTycoon.PlayerWalkSpeed or 16
-    getgenv().WarfareTycoon.PlayerJumpPower = getgenv().WarfareTycoon.PlayerJumpPower or 50
-    getgenv().WarfareTycoon.Enabled.Spectate = getgenv().WarfareTycoon.Enabled.Spectate or false
-    getgenv().WarfareTycoon._SpectateIndex = getgenv().WarfareTycoon._SpectateIndex or 1
-
-    local function applyPlayerStats()
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            pcall(function()
-                hum.WalkSpeed = getgenv().WarfareTycoon.PlayerWalkSpeed
-                hum.JumpPower = getgenv().WarfareTycoon.PlayerJumpPower
-            end)
-        end
-    end
-
-    LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(0.25)
-        applyPlayerStats()
-    end)
-    applyPlayerStats()
-
-    createSlider(PlayerTab, "🏃 WalkSpeed", 10, 150, getgenv().WarfareTycoon.PlayerWalkSpeed, function(v)
-        getgenv().WarfareTycoon.PlayerWalkSpeed = v
-        applyPlayerStats()
-    end)
-
-    createSlider(PlayerTab, "🦘 JumpPower", 25, 200, getgenv().WarfareTycoon.PlayerJumpPower, function(v)
-        getgenv().WarfareTycoon.PlayerJumpPower = v
-        applyPlayerStats()
-    end)
-
-    createToggle(PlayerTab, "🎥 Spectate", function(enabled)
-        getgenv().WarfareTycoon.Enabled.Spectate = enabled
-        if not enabled then
-            workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") or workspace.CurrentCamera.CameraSubject
-        end
-    end)
-
-    createButton(PlayerTab, "◀ Prev Target", function()
-        local list = Players:GetPlayers()
-        if #list == 0 then return end
-        getgenv().WarfareTycoon._SpectateIndex = ((getgenv().WarfareTycoon._SpectateIndex - 2) % #list) + 1
-    end)
-
-    createButton(PlayerTab, "Next Target ▶", function()
-        local list = Players:GetPlayers()
-        if #list == 0 then return end
-        getgenv().WarfareTycoon._SpectateIndex = (getgenv().WarfareTycoon._SpectateIndex % #list) + 1
-    end)
-
-    RunService.RenderStepped:Connect(function()
-        if not getgenv().WarfareTycoon.Enabled.Spectate then return end
-        local list = Players:GetPlayers()
-        if #list < 2 then return end
-        local idx = getgenv().WarfareTycoon._SpectateIndex
-        local target = list[idx]
-        if target == LocalPlayer then
-            idx = (idx % #list) + 1
-            target = list[idx]
-            getgenv().WarfareTycoon._SpectateIndex = idx
-        end
-        if target and target.Character then
-            local hum = target.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                workspace.CurrentCamera.CameraSubject = hum
-            end
-        end
-    end)
-
-    local function getHRP(character)
-        return character and character:FindFirstChild("HumanoidRootPart")
-    end
-    local function tpTo(cf)
-        local hrp = getHRP(LocalPlayer.Character)
-        if hrp and cf then
-            pcall(function()
-                hrp.CFrame = cf
-            end)
-        end
-    end
-
-    createButton(PlayerTab, "📍 TP to Mouse", function()
-        local mouse = LocalPlayer:GetMouse()
-        local pos = mouse.Hit and mouse.Hit.p
-        if pos then
-            tpTo(CFrame.new(pos + Vector3.new(0, 4, 0)))
-        end
-    end)
-
-    createButton(PlayerTab, "🏭 TP to My Tycoon", function()
-        local targetCF
-        pcall(function()
-            for _, m in ipairs(workspace:GetChildren()) do
-                if m:IsA("Model") then
-                    local ownerAttr = nil
-                    pcall(function() ownerAttr = m:GetAttribute("Owner") end)
-                    if (ownerAttr and tostring(ownerAttr) == LocalPlayer.Name) or string.find(string.lower(m.Name), string.lower(LocalPlayer.Name)) then
-                        local base = m:FindFirstChildWhichIsA("BasePart")
-                        if base then targetCF = base.CFrame + Vector3.new(0, 4, 0) break end
-                    end
-                end
-            end
-        end)
-        if not targetCF then
-            local nearest, best = nil, math.huge
-            local myHrp = getHRP(LocalPlayer.Character)
-            for _, m in ipairs(workspace:GetChildren()) do
-                if m:IsA("Model") and string.find(string.lower(m.Name), "tycoon") then
-                    local base = m:FindFirstChildWhichIsA("BasePart")
-                    if base and myHrp then
-                        local d = (base.Position - myHrp.Position).Magnitude
-                        if d < best then best = d nearest = base end
-                    end
-                end
-            end
-            if nearest then targetCF = nearest.CFrame + Vector3.new(0, 4, 0) end
-        end
-        tpTo(targetCF)
-    end)
-
-    createButton(PlayerTab, "🎯 TP to Spectate Target", function()
-        local list = Players:GetPlayers()
-        local idx = getgenv().WarfareTycoon._SpectateIndex
-        local target = list[idx]
-        if target and target ~= LocalPlayer and target.Character then
-            local thrp = getHRP(target.Character)
-            if thrp then
-                tpTo(thrp.CFrame * CFrame.new(0, 0, -3))
-            end
-        end
-    end)
-end
+ 
 -- (removed: moved PLAYER TAB below)
 
 -- (moved) Player tab content is initialized later, after tabs are created
@@ -660,7 +524,9 @@ do
                            or action:find("collect") or action:find("cash") or otext:find("cash")
                            or parentName:find("cash") or parentName:find("collect") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 25) then
-                                pcall(function() fireproximityprompt(obj) end)
+                                if typeof(fireproximityprompt) == "function" then
+                                    pcall(function() fireproximityprompt(obj) end)
+                                end
                             end
                         end
                     elseif obj:IsA("ClickDetector") then
@@ -669,7 +535,9 @@ do
                         if lname:find("cash") or lname:find("collect") or lname:find("money")
                            or parentName:find("cash") or parentName:find("collect") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 20) then
-                                pcall(function() fireclickdetector(obj) end)
+                                if typeof(fireclickdetector) == "function" then
+                                    pcall(function() fireclickdetector(obj) end)
+                                end
                             end
                         end
                     end
@@ -691,7 +559,9 @@ do
                            or otext:find("buy") or otext:find("upgrade") or otext:find("purchase") or otext:find("claim")
                            or parentName:find("buy") or parentName:find("upgrade") or parentName:find("purchase") or parentName:find("claim") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 22) then
-                                pcall(function() fireproximityprompt(obj) end)
+                                if typeof(fireproximityprompt) == "function" then
+                                    pcall(function() fireproximityprompt(obj) end)
+                                end
                             end
                         end
                     elseif obj:IsA("ClickDetector") then
@@ -700,7 +570,9 @@ do
                         if lname:find("buy") or lname:find("upgrade") or lname:find("purchase") or lname:find("claim")
                            or parentName:find("buy") or parentName:find("upgrade") or parentName:find("purchase") or parentName:find("claim") then
                             if obj.Parent and obj.Parent:IsA("BasePart") and isNear(obj.Parent.Position, 18) then
-                                pcall(function() fireclickdetector(obj) end)
+                                if typeof(fireclickdetector) == "function" then
+                                    pcall(function() fireclickdetector(obj) end)
+                                end
                             end
                         end
                     end
