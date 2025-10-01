@@ -788,6 +788,12 @@ do
         getgenv().WarfareTycoon.Enabled.FastReload = enabled
     end)
 
+    -- No Recoil
+    getgenv().WarfareTycoon.Enabled.NoRecoil = false
+    createToggle(CombatTab, "🧃 No Recoil", function(enabled)
+        getgenv().WarfareTycoon.Enabled.NoRecoil = enabled
+    end)
+
     -- Infinite Range
     getgenv().WarfareTycoon.Enabled.InfiniteRange = false
     createToggle(CombatTab, "🎯 Infinite Range", function(enabled)
@@ -838,6 +844,14 @@ do
                             obj.Value = 9999
                         end
                     end
+
+                    -- No Recoil: disable kick/visual shake/sway/bob
+                    if getgenv().WarfareTycoon.Enabled.NoRecoil then
+                        if n:find("recoil") or n:find("kick") or n:find("cam") and (n:find("shake") or n:find("kick"))
+                           or n:find("sway") or n:find("bob") or n:find("viewpunch") or n:find("screenshake") then
+                            obj.Value = 0
+                        end
+                    end
                 end
             end
             -- Attributes support (FastReload + others)
@@ -861,6 +875,13 @@ do
                                 tool:SetAttribute(k, 0)
                             elseif lk:find("penetration") then
                                 tool:SetAttribute(k, 9999)
+                            end
+                        end
+
+                        if getgenv().WarfareTycoon.Enabled.NoRecoil then
+                            if lk:find("recoil") or lk:find("kick") or (lk:find("cam") and (lk:find("shake") or lk:find("kick")))
+                               or lk:find("sway") or lk:find("bob") or lk:find("viewpunch") or lk:find("screenshake") then
+                                tool:SetAttribute(k, 0)
                             end
                         end
                     end
