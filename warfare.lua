@@ -15,6 +15,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
 
 -- Global state
 getgenv().WarfareTycoon = getgenv().WarfareTycoon or {
@@ -238,6 +239,111 @@ do
             if hum then
                 workspace.CurrentCamera.CameraSubject = hum
             end
+        end
+    end)
+
+    -- TP helpers
+    local function getHRP(character)
+        return character and character:FindFirstChild("HumanoidRootPart")
+    end
+    local function tpTo(cf)
+        local hrp = getHRP(LocalPlayer.Character)
+        if hrp and cf then
+            pcall(function()
+                hrp.CFrame = cf
+            end)
+        end
+    end
+
+    -- TP to Mouse
+    createButton(PlayerTab, "📍 TP to Mouse", function()
+        local mouse = LocalPlayer:GetMouse()
+        local pos = mouse.Hit and mouse.Hit.p
+        if pos then
+            tpTo(CFrame.new(pos + Vector3.new(0, 4, 0)))
+        end
+    end)
+
+    -- TP to My Tycoon (heuristic)
+    createButton(PlayerTab, "🏭 TP to My Tycoon", function()
+        local targetCF
+        -- Heuristic 1: Model with Owner attribute/name
+        pcall(function()
+            for _, m in ipairs(workspace:GetChildren()) do
+                if m:IsA("Model") then
+                    local ownerAttr = nil
+                    pcall(function() ownerAttr = m:GetAttribute("Owner") end)
+                    if (ownerAttr and tostring(ownerAttr) == LocalPlayer.Name) or string.find(string.lower(m.Name), string.lower(LocalPlayer.Name)) then
+                        local base = m:FindFirstChildWhichIsA("BasePart")
+                        if base then targetCF = base.CFrame + Vector3.new(0, 4, 0) break end
+                    end
+                end
+            end
+        end)
+        -- Heuristic 2: Nearest 'Tycoon' model
+        if not targetCF then
+            local nearest, best = nil, math.huge
+            local myHrp = getHRP(LocalPlayer.Character)
+            for _, m in ipairs(workspace:GetChildren()) do
+                if m:IsA("Model") and string.find(string.lower(m.Name), "tycoon") then
+                    local base = m:FindFirstChildWhichIsA("BasePart")
+                    if base and myHrp then
+                        local d = (base.Position - myHrp.Position).Magnitude
+                        if d < best then best = d nearest = base end
+                    end
+                end
+            end
+            if nearest then targetCF = nearest.CFrame + Vector3.new(0, 4, 0) end
+        end
+        tpTo(targetCF)
+    end)
+
+    -- TP to Spectate Target
+    createButton(PlayerTab, "🎯 TP to Spectate Target", function()
+        local list = Players:GetPlayers()
+        local idx = getgenv().WarfareTycoon._SpectateIndex
+        local target = list[idx]
+        if target and target ~= LocalPlayer and target.Character then
+            local thrp = getHRP(target.Character)
+            if thrp then
+                tpTo(thrp.CFrame * CFrame.new(0, 0, -3))
+            end
+        end
+    end)
+
+    -- Anti-Cheat Suite
+    getgenv().WarfareTycoon.Enabled.AntiKick = getgenv().WarfareTycoon.Enabled.AntiKick or false
+    getgenv().WarfareTycoon.Enabled.RemoteBlocker = getgenv().WarfareTycoon.Enabled.RemoteBlocker or false
+    getgenv().WarfareTycoon.Enabled.AntiAFK = getgenv().WarfareTycoon.Enabled.AntiAFK or false
+    getgenv().WarfareTycoon.Connections = getgenv().WarfareTycoon.Connections or {}
+
+    createToggle(MiscTab, "🛡️ AntiKick", function(enabled)
+        getgenv().WarfareTycoon.Enabled.AntiKick = enabled
+        print("[Warfare Tycoon] AntiKick: " .. (enabled and "ON" or "OFF"))
+    end)
+
+    createToggle(MiscTab, "🚫 Block Suspicious Remotes", function(enabled)
+        getgenv().WarfareTycoon.Enabled.RemoteBlocker = enabled
+        print("[Warfare Tycoon] RemoteBlocker: " .. (enabled and "ON" or "OFF"))
+    end)
+
+    createToggle(MiscTab, "🕒 Anti-AFK", function(enabled)
+        getgenv().WarfareTycoon.Enabled.AntiAFK = enabled
+        -- disconnect previous
+        if getgenv().WarfareTycoon.Connections.AntiAFK then
+            pcall(function() getgenv().WarfareTycoon.Connections.AntiAFK:Disconnect() end)
+            getgenv().WarfareTycoon.Connections.AntiAFK = nil
+        end
+        if enabled then
+            getgenv().WarfareTycoon.Connections.AntiAFK = LocalPlayer.Idled:Connect(function()
+                pcall(function()
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(0,0))
+                end)
+            end)
+            print("[Warfare Tycoon] Anti-AFK: ON")
+        else
+            print("[Warfare Tycoon] Anti-AFK: OFF")
         end
     end)
 end
@@ -1002,6 +1108,33 @@ do
         oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
             local args = {...}
             local method = getnamecallmethod and getnamecallmethod() or ""
+
+            -- AntiKick: block Player:Kick()
+            if getgenv().WarfareTycoon.Enabled and getgenv().WarfareTycoon.Enabled.AntiKick then
+                if method == "Kick" and (self == LocalPlayer or tostring(self) == LocalPlayer.Name) then
+                    print("[AntiKick] Blocked Kick() call")
+                    return nil
+                end
+            end
+
+            -- RemoteBlocker: block suspicious remotes
+            if getgenv().WarfareTycoon.Enabled and getgenv().WarfareTycoon.Enabled.RemoteBlocker then
+                if (method == "FireServer" or method == "InvokeServer") and typeof(self) == "Instance" then
+                    local n = string.lower(self.Name)
+                    local full = (self.GetFullName and self:GetFullName() or self.Name)
+                    local suspicious = {
+                        "anticheat","anti_cheat","ban","kick","log","detect","exploit","cheat","report","flag"
+                    }
+                    local flagged = false
+                    for _, p in ipairs(suspicious) do
+                        if n:find(p) or string.lower(full):find(p) then flagged = true break end
+                    end
+                    if flagged then
+                        print("[RemoteBlocker] Blocked: " .. full .. " (" .. method .. ")")
+                        return nil
+                    end
+                end
+            end
 
             local function getClosestPlayer()
                 local cam = workspace.CurrentCamera
