@@ -22,7 +22,9 @@ getgenv().WarfareTycoon = getgenv().WarfareTycoon or {
     Version = "3.0",
     Enabled = {},
     Connections = {},
-    ESPObjects = {}
+    ESPObjects = {},
+    HitboxWhitelist = {},
+    OriginalHitboxSizes = {}
 }
 
 -- Cleanup function
@@ -1592,6 +1594,223 @@ do
                 if p ~= LocalPlayer then clientOnlyBring(p) end
             end
         end
+    end)
+end
+
+-- ===== PLAYER: HITBOX EXPANDER + WHITELIST =====
+do
+    local hitboxSize = 10
+    local hitboxEnabled = false
+    
+    -- Whitelist management
+    local whitelistPlayers = {}
+    local whitelistNames = {}
+    
+    local function isWhitelisted(playerName)
+        return whitelistPlayers[playerName] == true
+    end
+    
+    local function addToWhitelist(playerName)
+        whitelistPlayers[playerName] = true
+        table.insert(whitelistNames, playerName)
+        print("[Hitbox] Added to whitelist: " .. playerName)
+    end
+    
+    local function removeFromWhitelist(playerName)
+        whitelistPlayers[playerName] = nil
+        for i, name in ipairs(whitelistNames) do
+            if name == playerName then
+                table.remove(whitelistNames, i)
+                break
+            end
+        end
+        print("[Hitbox] Removed from whitelist: " .. playerName)
+    end
+    
+    local function expandHitbox(character, size)
+        if not character then return end
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            -- Save original size if not saved
+            if not getgenv().WarfareTycoon.OriginalHitboxSizes[hrp] then
+                getgenv().WarfareTycoon.OriginalHitboxSizes[hrp] = hrp.Size
+            end
+            
+            hrp.Size = Vector3.new(size, size, size)
+            hrp.Transparency = 0.7
+            hrp.CanCollide = false
+            hrp.Massless = true
+        end
+    end
+    
+    local function restoreHitbox(character)
+        if not character then return end
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp and getgenv().WarfareTycoon.OriginalHitboxSizes[hrp] then
+            hrp.Size = getgenv().WarfareTycoon.OriginalHitboxSizes[hrp]
+            hrp.Transparency = 1
+            hrp.CanCollide = false
+            getgenv().WarfareTycoon.OriginalHitboxSizes[hrp] = nil
+        end
+    end
+    
+    local function updateHitboxes()
+        if not hitboxEnabled then return end
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                -- Skip whitelisted players
+                if not isWhitelisted(player.Name) then
+                    expandHitbox(player.Character, hitboxSize)
+                end
+            end
+        end
+    end
+    
+    -- Hitbox size slider
+    createSlider(PlayerTab, "📏 Hitbox Size", 5, 50, hitboxSize, function(value)
+        hitboxSize = value
+        if hitboxEnabled then
+            updateHitboxes()
+        end
+    end)
+    
+    -- Hitbox toggle
+    createToggle(PlayerTab, "🎯 Hitbox Expander", function(enabled)
+        hitboxEnabled = enabled
+        getgenv().WarfareTycoon.Enabled.Hitbox = enabled
+        
+        if enabled then
+            print("[Hitbox] Enabled with size: " .. hitboxSize)
+            
+            -- Update loop
+            local conn = RunService.Heartbeat:Connect(function()
+                if hitboxEnabled then
+                    updateHitboxes()
+                end
+            end)
+            table.insert(getgenv().WarfareTycoon.Connections, conn)
+            
+            -- Handle new players
+            local conn2 = Players.PlayerAdded:Connect(function(player)
+                if hitboxEnabled then
+                    player.CharacterAdded:Connect(function(char)
+                        task.wait(0.5)
+                        if not isWhitelisted(player.Name) then
+                            expandHitbox(char, hitboxSize)
+                        end
+                    end)
+                end
+            end)
+            table.insert(getgenv().WarfareTycoon.Connections, conn2)
+            
+            -- Initial expansion
+            updateHitboxes()
+        else
+            print("[Hitbox] Disabled")
+            -- Restore all hitboxes
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    restoreHitbox(player.Character)
+                end
+            end
+        end
+    end)
+    
+    -- Whitelist UI
+    local whitelistTargets = {}
+    local function refreshWhitelistPlayers()
+        whitelistTargets = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                table.insert(whitelistTargets, p.Name)
+            end
+        end
+        if #whitelistTargets == 0 then
+            table.insert(whitelistTargets, "<no players>")
+        end
+    end
+    refreshWhitelistPlayers()
+    
+    local selectedWhitelistTarget = whitelistTargets[1]
+    
+    createButton(PlayerTab, "🔄 Refresh Whitelist Players", function()
+        refreshWhitelistPlayers()
+        print("[Hitbox] Refreshed player list")
+    end)
+    
+    createDropdown(PlayerTab, "👤 Select Player", whitelistTargets, function(v)
+        selectedWhitelistTarget = v
+    end)
+    
+    createButton(PlayerTab, "✅ Add to Whitelist", function()
+        if not selectedWhitelistTarget or selectedWhitelistTarget == "<no players>" then
+            print("[Hitbox] No player selected")
+            return
+        end
+        
+        if isWhitelisted(selectedWhitelistTarget) then
+            print("[Hitbox] Player already whitelisted: " .. selectedWhitelistTarget)
+            return
+        end
+        
+        addToWhitelist(selectedWhitelistTarget)
+        
+        -- Restore hitbox if currently expanded
+        local player = Players:FindFirstChild(selectedWhitelistTarget)
+        if player and player.Character then
+            restoreHitbox(player.Character)
+        end
+    end)
+    
+    createButton(PlayerTab, "❌ Remove from Whitelist", function()
+        if not selectedWhitelistTarget or selectedWhitelistTarget == "<no players>" then
+            print("[Hitbox] No player selected")
+            return
+        end
+        
+        if not isWhitelisted(selectedWhitelistTarget) then
+            print("[Hitbox] Player not in whitelist: " .. selectedWhitelistTarget)
+            return
+        end
+        
+        removeFromWhitelist(selectedWhitelistTarget)
+        
+        -- Expand hitbox if hitbox is enabled
+        if hitboxEnabled then
+            local player = Players:FindFirstChild(selectedWhitelistTarget)
+            if player and player.Character then
+                expandHitbox(player.Character, hitboxSize)
+            end
+        end
+    end)
+    
+    createButton(PlayerTab, "📋 Show Whitelist", function()
+        print("\n[Hitbox] === WHITELIST ===")
+        if #whitelistNames == 0 then
+            print("  (empty)")
+        else
+            for i, name in ipairs(whitelistNames) do
+                print(string.format("  [%d] %s", i, name))
+            end
+        end
+        print("[Hitbox] Total: " .. #whitelistNames .. " players\n")
+    end)
+    
+    createButton(PlayerTab, "🗑️ Clear Whitelist", function()
+        -- Restore all whitelisted players' hitboxes if enabled
+        if hitboxEnabled then
+            for playerName, _ in pairs(whitelistPlayers) do
+                local player = Players:FindFirstChild(playerName)
+                if player and player.Character then
+                    expandHitbox(player.Character, hitboxSize)
+                end
+            end
+        end
+        
+        whitelistPlayers = {}
+        whitelistNames = {}
+        print("[Hitbox] Whitelist cleared")
     end)
 end
 local isMinimized = false
