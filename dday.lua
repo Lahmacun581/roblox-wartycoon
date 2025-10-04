@@ -600,32 +600,6 @@ do
         end
     end)
     
-    -- Wallbang
-    createToggle(CombatTab, "🧱 Wallbang", function(enabled)
-        getgenv().DDay.Enabled.Wallbang = enabled
-        
-        if enabled then
-            print("[Combat] Wallbang: ON")
-            
-            local conn = RunService.Heartbeat:Connect(function()
-                if not getgenv().DDay.Enabled.Wallbang then return end
-                
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        for _, part in ipairs(player.Character:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.CanCollide = false
-                            end
-                        end
-                    end
-                end
-            end)
-            
-            table.insert(getgenv().DDay.Connections, conn)
-        else
-            print("[Combat] Wallbang: OFF")
-        end
-    end)
     
     -- No Spread
     createToggle(CombatTab, "🎯 No Spread", function(enabled)
@@ -708,6 +682,7 @@ do
     local ESPDistanceEnabled = false
     local ESPTracerEnabled = false
     local ESPSkeletonEnabled = false
+    local ESPTeamCheck = true -- Takımdakileri gösterme (varsayılan: açık)
     
     local ESPColor = Color3.fromRGB(220, 100, 100)
     local ESPObjects = {}
@@ -858,6 +833,21 @@ do
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             
             if not hrp or not head or not humanoid then continue end
+            
+            -- Team Check: Takımdakileri gösterme
+            if ESPTeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                -- Takım arkadaşı, ESP gösterme
+                for _, drawing in pairs(espData.drawings) do
+                    if type(drawing) == "table" then
+                        for _, line in pairs(drawing) do
+                            line.Visible = false
+                        end
+                    else
+                        drawing.Visible = false
+                    end
+                end
+                continue
+            end
             
             local hrpPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
             
@@ -1044,6 +1034,11 @@ do
     
     createToggle(ESPTab, "💀 Skeleton ESP", function(enabled)
         ESPSkeletonEnabled = enabled
+    end)
+    
+    createToggle(ESPTab, "👥 Team Check (Takımı Gizle)", function(enabled)
+        ESPTeamCheck = enabled
+        print("[ESP] Team Check:", enabled and "ON (Takım gizli)" or "OFF (Herkesi göster)")
     end)
 end
 
