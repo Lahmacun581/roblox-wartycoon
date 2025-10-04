@@ -8,14 +8,32 @@
 
 print("[D-Day] Loading GUI v1.0...")
 
+-- Wait for game to load
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+task.wait(1) -- Extra safety delay
+
 -- Services
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Wait for PlayerGui with timeout
+local PlayerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+if not PlayerGui then
+    LocalPlayer:WaitForChild("PlayerGui", 5)
+    PlayerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+end
+
+if not PlayerGui then
+    warn("[D-Day] PlayerGui not found! Creating temporary GUI parent...")
+    PlayerGui = LocalPlayer
+end
 
 -- Global state
 getgenv().DDay = getgenv().DDay or {
