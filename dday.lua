@@ -36,6 +36,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DDayGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999999999 -- En üstte
 ScreenGui.Parent = PlayerGui
 
 -- Main Container
@@ -45,6 +46,7 @@ MainContainer.Size = UDim2.new(0, 750, 0, 550)
 MainContainer.Position = UDim2.new(0.5, -375, 0.5, -275)
 MainContainer.BackgroundTransparency = 1
 MainContainer.Active = true
+MainContainer.Draggable = true -- Sürüklenebilir
 MainContainer.Parent = ScreenGui
 
 -- Background
@@ -1076,41 +1078,8 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Draggable
-local dragging = false
-local dragInput, mousePos, framePos
-
-Header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        mousePos = input.Position
-        framePos = MainContainer.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-Header.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - mousePos
-        MainContainer.Position = UDim2.new(
-            framePos.X.Scale,
-            framePos.X.Offset + delta.X,
-            framePos.Y.Scale,
-            framePos.Y.Offset + delta.Y
-        )
-    end
-end)
+-- Draggable (MainContainer.Draggable = true olduğu için otomatik çalışır)
+-- Ek kod gerekmez, Roblox otomatik handle eder
 
 -- Klavye kısayolları
 local visible = true
