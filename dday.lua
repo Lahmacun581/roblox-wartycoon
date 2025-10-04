@@ -574,23 +574,23 @@ end
 
 -- ===== COMBAT TAB (OPTIMIZED) =====
 do
-    -- Unified combat loop (prevents lag)
-    local combatConnection = nil
+    -- Combat loop for weapon mods
+    local weaponConnection = nil
     local frameCounter = 0
     
-    local function startCombatLoop()
-        if combatConnection then return end
+    -- No Spread
+    createToggle(CombatTab, "🎯 No Spread", function(enabled)
+        getgenv().DDay.Enabled.NoSpread = enabled
+        print("[Combat] No Spread:", enabled and "ON" or "OFF")
         
-        combatConnection = RunService.Heartbeat:Connect(function()
-            -- Update every 3 frames for performance
-            frameCounter = frameCounter + 1
-            if frameCounter % 3 ~= 0 then return end
-            
-            local char = LocalPlayer.Character
-            if not char then return end
-            
-            -- One Shot Kill + No Spread (weapon mods)
-            if getgenv().DDay.Enabled.OneShotKill or getgenv().DDay.Enabled.NoSpread then
+        if enabled then
+            weaponConnection = RunService.Heartbeat:Connect(function()
+                frameCounter = frameCounter + 1
+                if frameCounter % 5 ~= 0 then return end -- Every 5 frames
+                
+                local char = LocalPlayer.Character
+                if not char then return end
+                
                 local tool = char:FindFirstChildOfClass("Tool")
                 if tool then
                     local config = tool:FindFirstChild("Config") or tool:FindFirstChild("Configuration")
@@ -598,17 +598,7 @@ do
                         for _, value in ipairs(config:GetChildren()) do
                             if value:IsA("NumberValue") then
                                 local name = value.Name:lower()
-                                
-                                -- One Shot Kill
-                                if getgenv().DDay.Enabled.OneShotKill and (name:find("damage") or name:find("dmg")) then
-                                    if not getgenv().DDay.OriginalValues[value] then
-                                        getgenv().DDay.OriginalValues[value] = value.Value
-                                    end
-                                    value.Value = 999999
-                                end
-                                
-                                -- No Spread
-                                if getgenv().DDay.Enabled.NoSpread and (name:find("spread") or name:find("accuracy")) then
+                                if name:find("spread") or name:find("accuracy") then
                                     if not getgenv().DDay.OriginalValues[value] then
                                         getgenv().DDay.OriginalValues[value] = value.Value
                                     end
@@ -618,72 +608,15 @@ do
                         end
                     end
                 end
+            end)
+            
+            table.insert(getgenv().DDay.Connections, weaponConnection)
+        else
+            if weaponConnection then
+                weaponConnection:Disconnect()
+                weaponConnection = nil
             end
             
-            -- Hitbox Expander
-            if getgenv().DDay.Enabled.Hitbox then
-                local size = getgenv().DDay.HitboxSize or 10
-                
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            hrp.Size = Vector3.new(size, size, size)
-                            hrp.Transparency = 0.7
-                            hrp.CanCollide = false
-                            hrp.Massless = true
-                        end
-                    end
-                end
-            end
-        end)
-        
-        table.insert(getgenv().DDay.Connections, combatConnection)
-    end
-    
-    local function stopCombatLoop()
-        if combatConnection then
-            combatConnection:Disconnect()
-            combatConnection = nil
-        end
-    end
-    
-    local function checkCombatLoop()
-        local anyEnabled = getgenv().DDay.Enabled.OneShotKill or 
-                          getgenv().DDay.Enabled.NoSpread or 
-                          getgenv().DDay.Enabled.Hitbox
-        
-        if anyEnabled then
-            startCombatLoop()
-        else
-            stopCombatLoop()
-        end
-    end
-    
-    -- One Shot Kill
-    createToggle(CombatTab, "💀 One Shot Kill", function(enabled)
-        getgenv().DDay.Enabled.OneShotKill = enabled
-        print("[Combat] One Shot Kill:", enabled and "ON" or "OFF")
-        
-        if not enabled then
-            -- Restore original values
-            for value, original in pairs(getgenv().DDay.OriginalValues) do
-                if value and value.Parent and value.Name:lower():find("damage") then
-                    value.Value = original
-                    getgenv().DDay.OriginalValues[value] = nil
-                end
-            end
-        end
-        
-        checkCombatLoop()
-    end)
-    
-    -- No Spread
-    createToggle(CombatTab, "🎯 No Spread", function(enabled)
-        getgenv().DDay.Enabled.NoSpread = enabled
-        print("[Combat] No Spread:", enabled and "ON" or "OFF")
-        
-        if not enabled then
             -- Restore original values
             for value, original in pairs(getgenv().DDay.OriginalValues) do
                 if value and value.Parent and value.Name:lower():find("spread") then
@@ -692,20 +625,105 @@ do
                 end
             end
         end
-        
-        checkCombatLoop()
     end)
     
-    -- Hitbox Expander
+    -- Advanced Hitbox Expander
+    getgenv().DDay.HitboxSize = 10
+    getgenv().DDay.HitboxPart = "HumanoidRootPart" -- Default
+    getgenv().DDay.HitboxTeamCheck = true -- Don't expand teammates
+    
+    local hitboxConnection = nil
+    local hitboxCache = {} -- Cache for performance
+    
     createSlider(CombatTab, "📏 Hitbox Size", 5, 50, 10, function(value)
         getgenv().DDay.HitboxSize = value
     end)
     
+    -- Hitbox Part Selection
+    local hitboxParts = {"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso"}
+    local currentPartIndex = 1
+    
+    createButton(CombatTab, "🎯 Hitbox Part: HumanoidRootPart", function()
+        currentPartIndex = currentPartIndex + 1
+        if currentPartIndex > #hitboxParts then
+            currentPartIndex = 1
+        end
+        
+        getgenv().DDay.HitboxPart = hitboxParts[currentPartIndex]
+        
+        -- Update button text
+        for _, child in ipairs(CombatTab:GetChildren()) do
+            if child:IsA("TextButton") and child.Text:find("Hitbox Part:") then
+                child.Text = "🎯 Hitbox Part: " .. hitboxParts[currentPartIndex]
+                break
+            end
+        end
+        
+        print("[Hitbox] Part changed to:", hitboxParts[currentPartIndex])
+    end)
+    
+    createToggle(CombatTab, "👥 Hitbox Team Check", function(enabled)
+        getgenv().DDay.HitboxTeamCheck = enabled
+        print("[Hitbox] Team Check:", enabled and "ON (Takım korunuyor)" or "OFF")
+    end)
+    
     createToggle(CombatTab, "🎯 Hitbox Expander", function(enabled)
         getgenv().DDay.Enabled.Hitbox = enabled
-        print("[Combat] Hitbox Expander:", enabled and "ON" or "OFF")
+        print("[Hitbox] Expander:", enabled and "ON" or "OFF")
         
-        checkCombatLoop()
+        if enabled then
+            hitboxConnection = RunService.Heartbeat:Connect(function()
+                frameCounter = frameCounter + 1
+                if frameCounter % 10 ~= 0 then return end -- Every 10 frames for performance
+                
+                local size = getgenv().DDay.HitboxSize or 10
+                local partName = getgenv().DDay.HitboxPart or "HumanoidRootPart"
+                local teamCheck = getgenv().DDay.HitboxTeamCheck
+                
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        -- Team Check
+                        if teamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                            -- Skip teammates
+                            continue
+                        end
+                        
+                        local part = player.Character:FindFirstChild(partName)
+                        if part and part:IsA("BasePart") then
+                            -- Cache check
+                            if not hitboxCache[part] then
+                                hitboxCache[part] = {
+                                    OriginalSize = part.Size,
+                                    OriginalTransparency = part.Transparency
+                                }
+                            end
+                            
+                            -- Expand hitbox
+                            part.Size = Vector3.new(size, size, size)
+                            part.Transparency = 0.5
+                            part.CanCollide = false
+                            part.Massless = true
+                        end
+                    end
+                end
+            end)
+            
+            table.insert(getgenv().DDay.Connections, hitboxConnection)
+        else
+            if hitboxConnection then
+                hitboxConnection:Disconnect()
+                hitboxConnection = nil
+            end
+            
+            -- Restore all hitboxes
+            for part, data in pairs(hitboxCache) do
+                if part and part.Parent then
+                    part.Size = data.OriginalSize
+                    part.Transparency = data.OriginalTransparency
+                end
+            end
+            hitboxCache = {}
+        end
     end)
 end
 
