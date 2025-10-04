@@ -572,103 +572,56 @@ if tabs["Combat"] then
     tabs["Combat"].label.TextColor3 = Color3.fromRGB(255, 255, 255)
 end
 
--- ===== COMBAT TAB =====
+-- ===== COMBAT TAB (OPTIMIZED) =====
 do
-    -- One Shot Kill
-    createToggle(CombatTab, "💀 One Shot Kill", function(enabled)
-        getgenv().DDay.Enabled.OneShotKill = enabled
+    -- Unified combat loop (prevents lag)
+    local combatConnection = nil
+    local frameCounter = 0
+    
+    local function startCombatLoop()
+        if combatConnection then return end
         
-        if enabled then
-            print("[Combat] One Shot Kill: ON")
+        combatConnection = RunService.Heartbeat:Connect(function()
+            -- Update every 3 frames for performance
+            frameCounter = frameCounter + 1
+            if frameCounter % 3 ~= 0 then return end
             
-            local conn = RunService.Heartbeat:Connect(function()
-                if not getgenv().DDay.Enabled.OneShotKill then return end
-                
-                local char = LocalPlayer.Character
-                if char then
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            local config = tool:FindFirstChild("Config") or tool:FindFirstChild("Configuration")
-                            if config then
-                                for _, value in ipairs(config:GetChildren()) do
-                                    if value:IsA("NumberValue") and (value.Name:lower():find("damage") or value.Name:lower():find("dmg")) then
-                                        if not getgenv().DDay.OriginalValues[value] then
-                                            getgenv().DDay.OriginalValues[value] = value.Value
-                                        end
-                                        value.Value = 999999
+            local char = LocalPlayer.Character
+            if not char then return end
+            
+            -- One Shot Kill + No Spread (weapon mods)
+            if getgenv().DDay.Enabled.OneShotKill or getgenv().DDay.Enabled.NoSpread then
+                local tool = char:FindFirstChildOfClass("Tool")
+                if tool then
+                    local config = tool:FindFirstChild("Config") or tool:FindFirstChild("Configuration")
+                    if config then
+                        for _, value in ipairs(config:GetChildren()) do
+                            if value:IsA("NumberValue") then
+                                local name = value.Name:lower()
+                                
+                                -- One Shot Kill
+                                if getgenv().DDay.Enabled.OneShotKill and (name:find("damage") or name:find("dmg")) then
+                                    if not getgenv().DDay.OriginalValues[value] then
+                                        getgenv().DDay.OriginalValues[value] = value.Value
                                     end
+                                    value.Value = 999999
+                                end
+                                
+                                -- No Spread
+                                if getgenv().DDay.Enabled.NoSpread and (name:find("spread") or name:find("accuracy")) then
+                                    if not getgenv().DDay.OriginalValues[value] then
+                                        getgenv().DDay.OriginalValues[value] = value.Value
+                                    end
+                                    value.Value = 0
                                 end
                             end
                         end
                     end
-                end
-            end)
-            
-            table.insert(getgenv().DDay.Connections, conn)
-        else
-            print("[Combat] One Shot Kill: OFF")
-            
-            -- Restore original values
-            for value, original in pairs(getgenv().DDay.OriginalValues) do
-                if value and value.Parent then
-                    value.Value = original
                 end
             end
-            getgenv().DDay.OriginalValues = {}
-        end
-    end)
-    
-    
-    -- No Spread
-    createToggle(CombatTab, "🎯 No Spread", function(enabled)
-        getgenv().DDay.Enabled.NoSpread = enabled
-        
-        if enabled then
-            print("[Combat] No Spread: ON")
             
-            local conn = RunService.Heartbeat:Connect(function()
-                if not getgenv().DDay.Enabled.NoSpread then return end
-                
-                local char = LocalPlayer.Character
-                if char then
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            local config = tool:FindFirstChild("Config") or tool:FindFirstChild("Configuration")
-                            if config then
-                                for _, value in ipairs(config:GetChildren()) do
-                                    if value:IsA("NumberValue") and (value.Name:lower():find("spread") or value.Name:lower():find("accuracy")) then
-                                        if not getgenv().DDay.OriginalValues[value] then
-                                            getgenv().DDay.OriginalValues[value] = value.Value
-                                        end
-                                        value.Value = 0
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-            
-            table.insert(getgenv().DDay.Connections, conn)
-        else
-            print("[Combat] No Spread: OFF")
-        end
-    end)
-    
-    -- Hitbox Expander
-    createSlider(CombatTab, "📏 Hitbox Size", 5, 50, 10, function(value)
-        getgenv().DDay.HitboxSize = value
-    end)
-    
-    createToggle(CombatTab, "🎯 Hitbox Expander", function(enabled)
-        getgenv().DDay.Enabled.Hitbox = enabled
-        
-        if enabled then
-            print("[Combat] Hitbox Expander: ON")
-            
-            local conn = RunService.Heartbeat:Connect(function()
-                if not getgenv().DDay.Enabled.Hitbox then return end
-                
+            -- Hitbox Expander
+            if getgenv().DDay.Enabled.Hitbox then
                 local size = getgenv().DDay.HitboxSize or 10
                 
                 for _, player in ipairs(Players:GetPlayers()) do
@@ -682,12 +635,77 @@ do
                         end
                     end
                 end
-            end)
-            
-            table.insert(getgenv().DDay.Connections, conn)
-        else
-            print("[Combat] Hitbox Expander: OFF")
+            end
+        end)
+        
+        table.insert(getgenv().DDay.Connections, combatConnection)
+    end
+    
+    local function stopCombatLoop()
+        if combatConnection then
+            combatConnection:Disconnect()
+            combatConnection = nil
         end
+    end
+    
+    local function checkCombatLoop()
+        local anyEnabled = getgenv().DDay.Enabled.OneShotKill or 
+                          getgenv().DDay.Enabled.NoSpread or 
+                          getgenv().DDay.Enabled.Hitbox
+        
+        if anyEnabled then
+            startCombatLoop()
+        else
+            stopCombatLoop()
+        end
+    end
+    
+    -- One Shot Kill
+    createToggle(CombatTab, "💀 One Shot Kill", function(enabled)
+        getgenv().DDay.Enabled.OneShotKill = enabled
+        print("[Combat] One Shot Kill:", enabled and "ON" or "OFF")
+        
+        if not enabled then
+            -- Restore original values
+            for value, original in pairs(getgenv().DDay.OriginalValues) do
+                if value and value.Parent and value.Name:lower():find("damage") then
+                    value.Value = original
+                    getgenv().DDay.OriginalValues[value] = nil
+                end
+            end
+        end
+        
+        checkCombatLoop()
+    end)
+    
+    -- No Spread
+    createToggle(CombatTab, "🎯 No Spread", function(enabled)
+        getgenv().DDay.Enabled.NoSpread = enabled
+        print("[Combat] No Spread:", enabled and "ON" or "OFF")
+        
+        if not enabled then
+            -- Restore original values
+            for value, original in pairs(getgenv().DDay.OriginalValues) do
+                if value and value.Parent and value.Name:lower():find("spread") then
+                    value.Value = original
+                    getgenv().DDay.OriginalValues[value] = nil
+                end
+            end
+        end
+        
+        checkCombatLoop()
+    end)
+    
+    -- Hitbox Expander
+    createSlider(CombatTab, "📏 Hitbox Size", 5, 50, 10, function(value)
+        getgenv().DDay.HitboxSize = value
+    end)
+    
+    createToggle(CombatTab, "🎯 Hitbox Expander", function(enabled)
+        getgenv().DDay.Enabled.Hitbox = enabled
+        print("[Combat] Hitbox Expander:", enabled and "ON" or "OFF")
+        
+        checkCombatLoop()
     end)
 end
 
