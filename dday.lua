@@ -1112,13 +1112,31 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Klavye kısayolu
+-- Klavye kısayolları
 local visible = true
+local mouseEnabled = false
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
+    
+    -- T = Toggle GUI
     if input.KeyCode == Enum.KeyCode.T then
         visible = not visible
         MainContainer.Visible = visible
+    end
+    
+    -- U = Toggle Mouse
+    if input.KeyCode == Enum.KeyCode.U then
+        mouseEnabled = not mouseEnabled
+        UserInputService.MouseIconEnabled = mouseEnabled
+        
+        if mouseEnabled then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            print("[D-Day] Mouse: ENABLED (Press U to disable)")
+        else
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+            print("[D-Day] Mouse: DISABLED (Press U to enable)")
+        end
     end
 end)
 
@@ -1128,5 +1146,7 @@ TweenService:Create(MainContainer, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enu
     Size = UDim2.new(0, 750, 0, 550)
 }):Play()
 
-print("[D-Day] GUI v1.0 loaded! Press T to toggle.")
+print("[D-Day] GUI v1.0 loaded!")
+print("[D-Day] Press T to toggle GUI")
+print("[D-Day] Press U to toggle Mouse")
 print("[D-Day] ESP optimized for 60+ FPS")
