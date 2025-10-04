@@ -296,7 +296,7 @@ createToggle("♾️ Infinite Jump", function(enabled)
     end
 end)
 
--- ===== FLY MODE =====
+-- ===== ADVANCED FLY MODE (Spiderman Compatible) =====
 createSlider("✈️ Fly Speed", 10, 200, 50, function(value)
     getgenv().WebbedObby.FlySpeed = value
 end)
@@ -305,41 +305,89 @@ createToggle("✈️ Fly Mode (E to toggle)", function(enabled)
     getgenv().WebbedObby.Flying = enabled
     
     if enabled then
-        print("[Webbed Obby] Fly Mode: ON (Press E to fly)")
+        print("[Webbed Obby] Advanced Fly Mode: ON (Press E to fly)")
         
         local flying = false
         local flyingConn
         local controlConn
+        local bodyVelocity
+        local bodyGyro
         
         local function startFlying()
             local char = LocalPlayer.Character
             if not char then return end
             local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not humanoid then return end
             
             flying = true
+            print("[Fly] Started - WASD to move, Space/Shift for up/down, E to stop")
             
-            local bodyVelocity = Instance.new("BodyVelocity")
+            -- Disable character physics
+            humanoid.PlatformStand = true
+            
+            -- Remove existing physics objects
+            for _, obj in ipairs(hrp:GetChildren()) do
+                if obj:IsA("BodyMover") then
+                    obj:Destroy()
+                end
+            end
+            
+            -- Create new physics objects with stronger force
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Name = "FlyVelocity"
             bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-            bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyVelocity.P = 1250
             bodyVelocity.Parent = hrp
             
-            local bodyGyro = Instance.new("BodyGyro")
-            bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-            bodyGyro.P = 9e4
+            bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.Name = "FlyGyro"
+            bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bodyGyro.P = 10000
+            bodyGyro.D = 500
             bodyGyro.Parent = hrp
             
+            -- Disable all body parts collision
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+            
+            -- Main fly loop
             controlConn = RunService.Heartbeat:Connect(function()
                 if not flying or not getgenv().WebbedObby.Flying then
-                    bodyVelocity:Destroy()
-                    bodyGyro:Destroy()
+                    if bodyVelocity then bodyVelocity:Destroy() end
+                    if bodyGyro then bodyGyro:Destroy() end
+                    if humanoid then humanoid.PlatformStand = false end
                     if controlConn then controlConn:Disconnect() end
+                    
+                    -- Restore collision
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                            part.CanCollide = true
+                        end
+                    end
                     return
+                end
+                
+                -- Keep physics disabled
+                if humanoid then
+                    humanoid.PlatformStand = true
+                end
+                
+                -- Keep collision disabled
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
                 end
                 
                 local camera = workspace.CurrentCamera
                 local moveDirection = Vector3.new()
                 
+                -- WASD movement
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then
                     moveDirection = moveDirection + camera.CFrame.LookVector
                 end
@@ -352,6 +400,8 @@ createToggle("✈️ Fly Mode (E to toggle)", function(enabled)
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then
                     moveDirection = moveDirection + camera.CFrame.RightVector
                 end
+                
+                -- Up/Down movement
                 if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                     moveDirection = moveDirection + Vector3.new(0, 1, 0)
                 end
@@ -359,27 +409,63 @@ createToggle("✈️ Fly Mode (E to toggle)", function(enabled)
                     moveDirection = moveDirection - Vector3.new(0, 1, 0)
                 end
                 
-                bodyVelocity.Velocity = moveDirection.Unit * getgenv().WebbedObby.FlySpeed
+                -- Apply velocity
+                if moveDirection.Magnitude > 0 then
+                    bodyVelocity.Velocity = moveDirection.Unit * getgenv().WebbedObby.FlySpeed
+                else
+                    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                end
+                
+                -- Apply rotation
                 bodyGyro.CFrame = camera.CFrame
             end)
         end
         
         local function stopFlying()
             flying = false
+            
+            -- Clean up physics objects
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+                bodyVelocity = nil
+            end
+            if bodyGyro then
+                bodyGyro:Destroy()
+                bodyGyro = nil
+            end
+            
+            -- Restore character
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.PlatformStand = false
+                end
+                
+                -- Restore collision
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+            
             if controlConn then
                 controlConn:Disconnect()
+                controlConn = nil
             end
+            
+            print("[Fly] Stopped")
         end
         
+        -- E key toggle
         flyingConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if gameProcessed then return end
             if input.KeyCode == Enum.KeyCode.E then
                 if flying then
                     stopFlying()
-                    print("[Fly] Stopped")
                 else
                     startFlying()
-                    print("[Fly] Started - WASD to move, Space/Shift for up/down")
                 end
             end
         end)
@@ -392,6 +478,21 @@ createToggle("✈️ Fly Mode (E to toggle)", function(enabled)
             pcall(function() conn:Disconnect() end)
         end
         getgenv().WebbedObby.Connections = {}
+        
+        -- Restore character
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.PlatformStand = false
+            end
+            
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.CanCollide = true
+                end
+            end
+        end
     end
 end)
 
