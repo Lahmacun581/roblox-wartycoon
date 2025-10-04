@@ -578,9 +578,422 @@ createToggle(PlayerTab, "✈️ Fly Mode", function(enabled)
     print("[Player] Fly Mode:", enabled)
 end)
 
-createButton(VisualsTab, "👁️ Player ESP", function()
-    print("[Visuals] Player ESP clicked")
-end)
+-- ===== ADVANCED ESP SYSTEM =====
+do
+    local ESPEnabled = false
+    local ESPBoxEnabled = false
+    local ESPNameEnabled = false
+    local ESPHealthEnabled = false
+    local ESPDistanceEnabled = false
+    local ESPTracerEnabled = false
+    local ESPSkeletonEnabled = false
+    local ESPTeamCheck = false
+    
+    local ESPColor = Color3.fromRGB(255, 100, 100)
+    local ESPTeamColor = Color3.fromRGB(100, 255, 100)
+    
+    local ESPObjects = {}
+    local ESPConnections = {}
+    
+    local function createESP(player)
+        if player == LocalPlayer then return end
+        if ESPObjects[player] then return end
+        
+        local espData = {
+            player = player,
+            drawings = {}
+        }
+        
+        -- Box
+        local box = Drawing.new("Square")
+        box.Visible = false
+        box.Color = ESPColor
+        box.Thickness = 2
+        box.Transparency = 1
+        box.Filled = false
+        espData.drawings.box = box
+        
+        local boxOutline = Drawing.new("Square")
+        boxOutline.Visible = false
+        boxOutline.Color = Color3.fromRGB(0, 0, 0)
+        boxOutline.Thickness = 4
+        boxOutline.Transparency = 1
+        boxOutline.Filled = false
+        espData.drawings.boxOutline = boxOutline
+        
+        -- Name
+        local nameText = Drawing.new("Text")
+        nameText.Visible = false
+        nameText.Color = ESPColor
+        nameText.Text = player.Name
+        nameText.Size = 16
+        nameText.Center = true
+        nameText.Outline = true
+        nameText.Font = 2
+        espData.drawings.name = nameText
+        
+        -- Health Bar
+        local healthBarBg = Drawing.new("Square")
+        healthBarBg.Visible = false
+        healthBarBg.Color = Color3.fromRGB(0, 0, 0)
+        healthBarBg.Thickness = 1
+        healthBarBg.Transparency = 0.5
+        healthBarBg.Filled = true
+        espData.drawings.healthBarBg = healthBarBg
+        
+        local healthBar = Drawing.new("Square")
+        healthBar.Visible = false
+        healthBar.Color = Color3.fromRGB(0, 255, 0)
+        healthBar.Thickness = 1
+        healthBar.Transparency = 1
+        healthBar.Filled = true
+        espData.drawings.healthBar = healthBar
+        
+        -- Health Text
+        local healthText = Drawing.new("Text")
+        healthText.Visible = false
+        healthText.Color = Color3.fromRGB(255, 255, 255)
+        healthText.Text = "100"
+        healthText.Size = 14
+        healthText.Center = true
+        healthText.Outline = true
+        healthText.Font = 2
+        espData.drawings.healthText = healthText
+        
+        -- Distance
+        local distanceText = Drawing.new("Text")
+        distanceText.Visible = false
+        distanceText.Color = Color3.fromRGB(200, 200, 200)
+        distanceText.Text = "0m"
+        distanceText.Size = 14
+        distanceText.Center = true
+        distanceText.Outline = true
+        distanceText.Font = 2
+        espData.drawings.distance = distanceText
+        
+        -- Tracer
+        local tracer = Drawing.new("Line")
+        tracer.Visible = false
+        tracer.Color = ESPColor
+        tracer.Thickness = 2
+        tracer.Transparency = 1
+        espData.drawings.tracer = tracer
+        
+        -- Skeleton lines
+        local skeletonLines = {}
+        local skeletonPairs = {
+            {"Head", "UpperTorso"},
+            {"UpperTorso", "LowerTorso"},
+            {"UpperTorso", "LeftUpperArm"},
+            {"LeftUpperArm", "LeftLowerArm"},
+            {"LeftLowerArm", "LeftHand"},
+            {"UpperTorso", "RightUpperArm"},
+            {"RightUpperArm", "RightLowerArm"},
+            {"RightLowerArm", "RightHand"},
+            {"LowerTorso", "LeftUpperLeg"},
+            {"LeftUpperLeg", "LeftLowerLeg"},
+            {"LeftLowerLeg", "LeftFoot"},
+            {"LowerTorso", "RightUpperLeg"},
+            {"RightUpperLeg", "RightLowerLeg"},
+            {"RightLowerLeg", "RightFoot"}
+        }
+        
+        for i = 1, #skeletonPairs do
+            local line = Drawing.new("Line")
+            line.Visible = false
+            line.Color = ESPColor
+            line.Thickness = 2
+            line.Transparency = 1
+            skeletonLines[i] = line
+        end
+        espData.drawings.skeleton = skeletonLines
+        
+        ESPObjects[player] = espData
+    end
+    
+    local function removeESP(player)
+        local espData = ESPObjects[player]
+        if espData then
+            for _, drawing in pairs(espData.drawings) do
+                if type(drawing) == "table" then
+                    for _, line in pairs(drawing) do
+                        line:Remove()
+                    end
+                else
+                    drawing:Remove()
+                end
+            end
+            ESPObjects[player] = nil
+        end
+    end
+    
+    local function updateESP()
+        if not ESPEnabled then return end
+        
+        local camera = workspace.CurrentCamera
+        local myChar = LocalPlayer.Character
+        if not myChar then return end
+        local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+        if not myHrp then return end
+        
+        for player, espData in pairs(ESPObjects) do
+            if not player or not player.Parent then
+                removeESP(player)
+                continue
+            end
+            
+            local char = player.Character
+            if not char then
+                for _, drawing in pairs(espData.drawings) do
+                    if type(drawing) == "table" then
+                        for _, line in pairs(drawing) do
+                            line.Visible = false
+                        end
+                    else
+                        drawing.Visible = false
+                    end
+                end
+                continue
+            end
+            
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local head = char:FindFirstChild("Head")
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            
+            if not hrp or not head or not humanoid then continue end
+            
+            -- Team check
+            local color = ESPColor
+            if ESPTeamCheck and player.Team == LocalPlayer.Team then
+                color = ESPTeamColor
+            end
+            
+            -- Calculate screen position
+            local hrpPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+            
+            if onScreen then
+                local headPos = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                
+                local height = math.abs(headPos.Y - legPos.Y)
+                local width = height / 2
+                
+                -- Distance
+                local distance = (hrp.Position - myHrp.Position).Magnitude
+                
+                -- Box ESP
+                if ESPBoxEnabled then
+                    espData.drawings.boxOutline.Size = Vector2.new(width, height)
+                    espData.drawings.boxOutline.Position = Vector2.new(hrpPos.X - width/2, headPos.Y)
+                    espData.drawings.boxOutline.Visible = true
+                    
+                    espData.drawings.box.Size = Vector2.new(width, height)
+                    espData.drawings.box.Position = Vector2.new(hrpPos.X - width/2, headPos.Y)
+                    espData.drawings.box.Color = color
+                    espData.drawings.box.Visible = true
+                else
+                    espData.drawings.box.Visible = false
+                    espData.drawings.boxOutline.Visible = false
+                end
+                
+                -- Name ESP
+                if ESPNameEnabled then
+                    espData.drawings.name.Position = Vector2.new(hrpPos.X, headPos.Y - 20)
+                    espData.drawings.name.Color = color
+                    espData.drawings.name.Visible = true
+                else
+                    espData.drawings.name.Visible = false
+                end
+                
+                -- Health ESP
+                if ESPHealthEnabled then
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    local barHeight = height
+                    local barWidth = 4
+                    
+                    espData.drawings.healthBarBg.Size = Vector2.new(barWidth, barHeight)
+                    espData.drawings.healthBarBg.Position = Vector2.new(hrpPos.X - width/2 - 8, headPos.Y)
+                    espData.drawings.healthBarBg.Visible = true
+                    
+                    espData.drawings.healthBar.Size = Vector2.new(barWidth, barHeight * healthPercent)
+                    espData.drawings.healthBar.Position = Vector2.new(hrpPos.X - width/2 - 8, headPos.Y + barHeight * (1 - healthPercent))
+                    espData.drawings.healthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+                    espData.drawings.healthBar.Visible = true
+                    
+                    espData.drawings.healthText.Text = tostring(math.floor(humanoid.Health))
+                    espData.drawings.healthText.Position = Vector2.new(hrpPos.X - width/2 - 10, headPos.Y + barHeight/2)
+                    espData.drawings.healthText.Visible = true
+                else
+                    espData.drawings.healthBarBg.Visible = false
+                    espData.drawings.healthBar.Visible = false
+                    espData.drawings.healthText.Visible = false
+                end
+                
+                -- Distance ESP
+                if ESPDistanceEnabled then
+                    espData.drawings.distance.Text = string.format("%dm", math.floor(distance))
+                    espData.drawings.distance.Position = Vector2.new(hrpPos.X, legPos.Y + 5)
+                    espData.drawings.distance.Visible = true
+                else
+                    espData.drawings.distance.Visible = false
+                end
+                
+                -- Tracer ESP
+                if ESPTracerEnabled then
+                    local tracerStart = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                    espData.drawings.tracer.From = tracerStart
+                    espData.drawings.tracer.To = Vector2.new(hrpPos.X, hrpPos.Y)
+                    espData.drawings.tracer.Color = color
+                    espData.drawings.tracer.Visible = true
+                else
+                    espData.drawings.tracer.Visible = false
+                end
+                
+                -- Skeleton ESP
+                if ESPSkeletonEnabled then
+                    local skeletonPairs = {
+                        {"Head", "UpperTorso"},
+                        {"UpperTorso", "LowerTorso"},
+                        {"UpperTorso", "LeftUpperArm"},
+                        {"LeftUpperArm", "LeftLowerArm"},
+                        {"LeftLowerArm", "LeftHand"},
+                        {"UpperTorso", "RightUpperArm"},
+                        {"RightUpperArm", "RightLowerArm"},
+                        {"RightLowerArm", "RightHand"},
+                        {"LowerTorso", "LeftUpperLeg"},
+                        {"LeftUpperLeg", "LeftLowerLeg"},
+                        {"LeftLowerLeg", "LeftFoot"},
+                        {"LowerTorso", "RightUpperLeg"},
+                        {"RightUpperLeg", "RightLowerLeg"},
+                        {"RightLowerLeg", "RightFoot"}
+                    }
+                    
+                    for i, pair in ipairs(skeletonPairs) do
+                        local part1 = char:FindFirstChild(pair[1])
+                        local part2 = char:FindFirstChild(pair[2])
+                        
+                        if part1 and part2 and espData.drawings.skeleton[i] then
+                            local pos1, vis1 = camera:WorldToViewportPoint(part1.Position)
+                            local pos2, vis2 = camera:WorldToViewportPoint(part2.Position)
+                            
+                            if vis1 and vis2 then
+                                espData.drawings.skeleton[i].From = Vector2.new(pos1.X, pos1.Y)
+                                espData.drawings.skeleton[i].To = Vector2.new(pos2.X, pos2.Y)
+                                espData.drawings.skeleton[i].Color = color
+                                espData.drawings.skeleton[i].Visible = true
+                            else
+                                espData.drawings.skeleton[i].Visible = false
+                            end
+                        elseif espData.drawings.skeleton[i] then
+                            espData.drawings.skeleton[i].Visible = false
+                        end
+                    end
+                else
+                    for _, line in pairs(espData.drawings.skeleton) do
+                        line.Visible = false
+                    end
+                end
+            else
+                -- Hide all if not on screen
+                for _, drawing in pairs(espData.drawings) do
+                    if type(drawing) == "table" then
+                        for _, line in pairs(drawing) do
+                            line.Visible = false
+                        end
+                    else
+                        drawing.Visible = false
+                    end
+                end
+            end
+        end
+    end
+    
+    -- ESP Toggles
+    createToggle(VisualsTab, "👁️ Enable ESP", function(enabled)
+        ESPEnabled = enabled
+        getgenv().EasternWar.Enabled.ESP = enabled
+        
+        if enabled then
+            print("[ESP] Enabled")
+            
+            -- Create ESP for existing players
+            for _, player in ipairs(Players:GetPlayers()) do
+                createESP(player)
+            end
+            
+            -- Update loop
+            local conn = RunService.RenderStepped:Connect(function()
+                if ESPEnabled then
+                    updateESP()
+                end
+            end)
+            table.insert(ESPConnections, conn)
+            
+            -- Handle new players
+            local conn2 = Players.PlayerAdded:Connect(function(player)
+                if ESPEnabled then
+                    task.wait(1)
+                    createESP(player)
+                end
+            end)
+            table.insert(ESPConnections, conn2)
+            
+            -- Handle removed players
+            local conn3 = Players.PlayerRemoving:Connect(function(player)
+                removeESP(player)
+            end)
+            table.insert(ESPConnections, conn3)
+        else
+            print("[ESP] Disabled")
+            
+            -- Disconnect all
+            for _, conn in ipairs(ESPConnections) do
+                conn:Disconnect()
+            end
+            ESPConnections = {}
+            
+            -- Remove all ESP
+            for player, _ in pairs(ESPObjects) do
+                removeESP(player)
+            end
+        end
+    end)
+    
+    createToggle(VisualsTab, "📦 Box ESP", function(enabled)
+        ESPBoxEnabled = enabled
+        print("[ESP] Box:", enabled)
+    end)
+    
+    createToggle(VisualsTab, "📝 Name ESP", function(enabled)
+        ESPNameEnabled = enabled
+        print("[ESP] Name:", enabled)
+    end)
+    
+    createToggle(VisualsTab, "❤️ Health ESP", function(enabled)
+        ESPHealthEnabled = enabled
+        print("[ESP] Health:", enabled)
+    end)
+    
+    createToggle(VisualsTab, "📏 Distance ESP", function(enabled)
+        ESPDistanceEnabled = enabled
+        print("[ESP] Distance:", enabled)
+    end)
+    
+    createToggle(VisualsTab, "📍 Tracer ESP", function(enabled)
+        ESPTracerEnabled = enabled
+        print("[ESP] Tracer:", enabled)
+    end)
+    
+    createToggle(VisualsTab, "💀 Skeleton ESP", function(enabled)
+        ESPSkeletonEnabled = enabled
+        print("[ESP] Skeleton:", enabled)
+    end)
+    
+    createToggle(VisualsTab, "👥 Team Check", function(enabled)
+        ESPTeamCheck = enabled
+        print("[ESP] Team Check:", enabled)
+    end)
+end
 
 -- Minimize functionality
 local isMinimized = false
