@@ -640,35 +640,46 @@ do
         if enabled then
             hitboxConnection = RunService.Heartbeat:Connect(function()
                 frameCounter = frameCounter + 1
-                if frameCounter % 5 ~= 0 then return end -- Faster update for head
+                if frameCounter % 10 ~= 0 then return end -- Every 10 frames
                 
                 local size = getgenv().EntrenchedWW1.HitboxSize or 10
                 local teamCheck = getgenv().EntrenchedWW1.HitboxTeamCheck
                 
                 for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        -- Team check
-                        if teamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-                            continue
-                        end
-                        
-                        -- Only expand HEAD
-                        local head = player.Character:FindFirstChild("Head")
-                        if head and head:IsA("BasePart") then
-                            -- Cache original
-                            if not getgenv().EntrenchedWW1.HitboxCache[head] then
-                                getgenv().EntrenchedWW1.HitboxCache[head] = {
-                                    OriginalSize = head.Size,
-                                    OriginalTransparency = head.Transparency,
-                                    OriginalCanCollide = head.CanCollide
-                                }
+                    if player ~= LocalPlayer then
+                        local char = player.Character
+                        if char then
+                            -- Team check
+                            if teamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                                continue
                             end
                             
-                            -- Expand HEAD hitbox
-                            head.Size = Vector3.new(size, size, size)
-                            head.Transparency = 0.7
-                            head.CanCollide = false
-                            head.Massless = true
+                            -- Check if character has humanoid (is alive)
+                            local humanoid = char:FindFirstChildOfClass("Humanoid")
+                            if not humanoid or humanoid.Health <= 0 then
+                                continue
+                            end
+                            
+                            -- Only expand HEAD
+                            local head = char:FindFirstChild("Head")
+                            if head and head:IsA("BasePart") then
+                                -- Cache original
+                                if not getgenv().EntrenchedWW1.HitboxCache[head] then
+                                    getgenv().EntrenchedWW1.HitboxCache[head] = {
+                                        OriginalSize = head.Size,
+                                        OriginalTransparency = head.Transparency,
+                                        OriginalCanCollide = head.CanCollide
+                                    }
+                                end
+                                
+                                -- Expand HEAD hitbox (INVISIBLE)
+                                pcall(function()
+                                    head.Size = Vector3.new(size, size, size)
+                                    head.Transparency = 1 -- Completely invisible
+                                    head.CanCollide = false
+                                    head.Massless = true
+                                end)
+                            end
                         end
                     end
                 end
