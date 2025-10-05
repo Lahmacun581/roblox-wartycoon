@@ -616,15 +616,15 @@ do
     end)
 end
 
--- ===== ADVANCED HITBOX EXPANDER (HEAD ONLY) =====
+-- ===== HITBOX EXPANDER (WARFARE STYLE) =====
 do
+    getgenv().EntrenchedWW1.Enabled.Hitbox = false
     getgenv().EntrenchedWW1.HitboxSize = 10
+    getgenv().EntrenchedWW1.HitboxPart = "Head"
     getgenv().EntrenchedWW1.HitboxTeamCheck = true
+    getgenv().EntrenchedWW1.HitboxState = getgenv().EntrenchedWW1.HitboxState or {}
     
-    local hitboxConnection = nil
-    local frameCounter = 0
-    
-    createSlider(Content, "🎯 Head Hitbox Size", 5, 50, 10, function(value)
+    createSlider(Content, "🎯 Hitbox Size", 5, 50, 10, function(value)
         getgenv().EntrenchedWW1.HitboxSize = value
     end)
     
@@ -633,77 +633,92 @@ do
         print("[Hitbox] Team Check:", enabled and "ON" or "OFF")
     end)
     
-    createToggle(Content, "🎯 Head Hitbox Expander", function(enabled)
+    createToggle(Content, "🎯 Hitbox Expander", function(enabled)
         getgenv().EntrenchedWW1.Enabled.Hitbox = enabled
-        print("[Hitbox] Head Expander:", enabled and "ON" or "OFF")
+        print("[Hitbox] Expander:", enabled and "ON" or "OFF")
         
-        if enabled then
-            hitboxConnection = RunService.Heartbeat:Connect(function()
-                frameCounter = frameCounter + 1
-                if frameCounter % 10 ~= 0 then return end -- Every 10 frames
-                
-                local size = getgenv().EntrenchedWW1.HitboxSize or 10
-                local teamCheck = getgenv().EntrenchedWW1.HitboxTeamCheck
-                
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer then
-                        local char = player.Character
-                        if char then
-                            -- Team check
-                            if teamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-                                continue
-                            end
-                            
-                            -- Check if character has humanoid (is alive)
-                            local humanoid = char:FindFirstChildOfClass("Humanoid")
-                            if not humanoid or humanoid.Health <= 0 then
-                                continue
-                            end
-                            
-                            -- Only expand HEAD
-                            local head = char:FindFirstChild("Head")
-                            if head and head:IsA("BasePart") then
-                                -- Cache original
-                                if not getgenv().EntrenchedWW1.HitboxCache[head] then
-                                    getgenv().EntrenchedWW1.HitboxCache[head] = {
-                                        OriginalSize = head.Size,
-                                        OriginalTransparency = head.Transparency,
-                                        OriginalCanCollide = head.CanCollide
-                                    }
-                                end
-                                
-                                -- Expand HEAD hitbox (INVISIBLE)
-                                pcall(function()
-                                    head.Size = Vector3.new(size, size, size)
-                                    head.Transparency = 1 -- Completely invisible
-                                    head.CanCollide = false
-                                    head.Massless = true
-                                end)
-                            end
-                        end
+        if not enabled then
+            -- Restore ALL tracked parts to their original state
+            local state = getgenv().EntrenchedWW1.HitboxState
+            for player, parts in pairs(state) do
+                for part, orig in pairs(parts) do
+                    if typeof(part) == "Instance" and part.Parent then
+                        pcall(function()
+                            part.Size = orig.Size
+                            part.Transparency = orig.Transparency
+                            part.CanCollide = orig.CanCollide
+                            part.Massless = orig.Massless
+                        end)
                     end
                 end
-            end)
-            
-            table.insert(getgenv().EntrenchedWW1.Connections, hitboxConnection)
-        else
-            if hitboxConnection then
-                hitboxConnection:Disconnect()
-                hitboxConnection = nil
             end
-            
-            -- Restore all hitboxes
-            for part, data in pairs(getgenv().EntrenchedWW1.HitboxCache) do
-                if part and part.Parent then
-                    pcall(function()
-                        part.Size = data.OriginalSize
-                        part.Transparency = data.OriginalTransparency
-                        part.CanCollide = data.OriginalCanCollide
-                    end)
+            getgenv().EntrenchedWW1.HitboxState = {}
+            print("[Hitbox] All parts restored")
+        end
+    end)
+    
+    local hitboxFrameCount = 0
+    RunService.Heartbeat:Connect(function()
+        if getgenv().EntrenchedWW1.Enabled.Hitbox then
+            hitboxFrameCount = hitboxFrameCount + 1
+            if hitboxFrameCount % 10 ~= 0 then return end
+
+            local size = getgenv().EntrenchedWW1.HitboxSize
+            local partName = getgenv().EntrenchedWW1.HitboxPart
+            local teamCheck = getgenv().EntrenchedWW1.HitboxTeamCheck
+            local state = getgenv().EntrenchedWW1.HitboxState
+
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    -- Team check
+                    if teamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                        continue
+                    end
+                    
+                    -- Reset any PREVIOUSLY enlarged parts for this player that are not the current target part
+                    local tracked = state[player]
+                    if tracked then
+                        for trackedPart, orig in pairs(tracked) do
+                            if typeof(trackedPart) == "Instance" and trackedPart.Parent then
+                                if trackedPart.Name ~= partName then
+                                    pcall(function()
+                                        trackedPart.Size = orig.Size
+                                        trackedPart.Transparency = orig.Transparency
+                                        trackedPart.CanCollide = orig.CanCollide
+                                        trackedPart.Massless = orig.Massless
+                                    end)
+                                    tracked[trackedPart] = nil
+                                end
+                            else
+                                tracked[trackedPart] = nil
+                            end
+                        end
+                        if next(tracked) == nil then state[player] = nil end
+                    end
+
+                    -- Enlarge CURRENT target part
+                    local part = player.Character:FindFirstChild(partName)
+                    if part and part:IsA("BasePart") then
+                        -- Save original state once
+                        state[player] = state[player] or {}
+                        if not state[player][part] then
+                            state[player][part] = {
+                                Size = part.Size,
+                                Transparency = part.Transparency,
+                                CanCollide = part.CanCollide,
+                                Massless = part.Massless,
+                            }
+                        end
+                        -- Apply enlarged state (INVISIBLE)
+                        pcall(function()
+                            part.Size = Vector3.new(size, size, size)
+                            part.Transparency = 1 -- Completely invisible
+                            part.CanCollide = false
+                            part.Massless = true
+                        end)
+                    end
                 end
             end
-            getgenv().EntrenchedWW1.HitboxCache = {}
-            print("[Hitbox] All heads restored")
         end
     end)
 end
