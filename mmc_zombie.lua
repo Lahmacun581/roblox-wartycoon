@@ -865,48 +865,185 @@ do
     end)
 end
 
--- ===== INFINITE AMMO =====
+-- ===== ADVANCED INFINITE AMMO =====
 do
-    createToggle(Content, "∞ Infinite Ammo", function(enabled)
+    local ammoConnection = nil
+    local frameCounter = 0
+    
+    createToggle(Content, "∞ Infinite Ammo (Advanced)", function(enabled)
         getgenv().MMCZombie.Enabled.InfiniteAmmo = enabled
         
         if enabled then
-            print("[Ammo] Infinite: ON")
+            print("[Ammo] Infinite: ON (Advanced)")
             
-            local conn = RunService.Heartbeat:Connect(function()
+            ammoConnection = RunService.Heartbeat:Connect(function()
                 if not getgenv().MMCZombie.Enabled.InfiniteAmmo then return end
+                
+                frameCounter = frameCounter + 1
+                if frameCounter % 5 ~= 0 then return end -- Every 5 frames
                 
                 local char = LocalPlayer.Character
                 if not char then return end
                 
-                -- Find equipped tool
+                -- Check equipped tool
                 local tool = char:FindFirstChildOfClass("Tool")
                 if tool then
-                    -- Look for ammo values in tool
+                    -- Method 1: Direct ammo values
                     for _, obj in ipairs(tool:GetDescendants()) do
                         if obj:IsA("IntValue") or obj:IsA("NumberValue") then
                             local name = obj.Name:lower()
-                            if name:find("ammo") or name:find("mag") or name:find("clip") then
+                            if name:find("ammo") or name:find("mag") or name:find("clip") or 
+                               name:find("current") or name:find("reserve") or name:find("bullet") then
                                 obj.Value = 999
                             end
                         end
                     end
                     
-                    -- Check for Ammo GUI
-                    local ammoGui = tool:FindFirstChild("AmmoGui") or tool:FindFirstChild("AmmoDisplay")
-                    if ammoGui then
-                        for _, obj in ipairs(ammoGui:GetDescendants()) do
-                            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-                                obj.Value = 999
+                    -- Method 2: Check backpack tools
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    if backpack then
+                        for _, backpackTool in ipairs(backpack:GetChildren()) do
+                            if backpackTool:IsA("Tool") then
+                                for _, obj in ipairs(backpackTool:GetDescendants()) do
+                                    if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                                        local name = obj.Name:lower()
+                                        if name:find("ammo") or name:find("mag") or name:find("clip") then
+                                            obj.Value = 999
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Method 3: Check PlayerGui for ammo displays
+                    for _, gui in ipairs(PlayerGui:GetDescendants()) do
+                        if gui:IsA("IntValue") or gui:IsA("NumberValue") then
+                            local name = gui.Name:lower()
+                            if name:find("ammo") or name:find("mag") or name:find("clip") then
+                                gui.Value = 999
                             end
                         end
                     end
                 end
             end)
             
-            table.insert(getgenv().MMCZombie.Connections, conn)
+            table.insert(getgenv().MMCZombie.Connections, ammoConnection)
         else
             print("[Ammo] Infinite: OFF")
+            if ammoConnection then
+                ammoConnection:Disconnect()
+                ammoConnection = nil
+            end
+        end
+    end)
+end
+
+-- ===== ZOMBIE HITBOX EXPANDER =====
+do
+    getgenv().MMCZombie.HitboxSize = 10
+    getgenv().MMCZombie.HitboxPart = "HumanoidRootPart"
+    
+    local hitboxConnection = nil
+    local hitboxCache = {}
+    local frameCounter = 0
+    
+    createSlider(Content, "📏 Zombie Hitbox Size", 5, 50, 10, function(value)
+        getgenv().MMCZombie.HitboxSize = value
+    end)
+    
+    -- Hitbox Part Selection
+    local hitboxParts = {"HumanoidRootPart", "Torso", "Head", "UpperTorso"}
+    local currentPartIndex = 1
+    
+    local partButton = Instance.new("TextButton")
+    partButton.Size = UDim2.new(1, -10, 0, 42)
+    partButton.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
+    partButton.Text = "🎯 Hitbox Part: HumanoidRootPart"
+    partButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    partButton.Font = Enum.Font.GothamMedium
+    partButton.TextSize = 14
+    partButton.AutoButtonColor = false
+    partButton.Parent = Content
+    
+    local partCorner = Instance.new("UICorner")
+    partCorner.CornerRadius = UDim.new(0, 10)
+    partCorner.Parent = partButton
+    
+    local partStroke = Instance.new("UIStroke")
+    partStroke.Color = Color3.fromRGB(80, 120, 80)
+    partStroke.Thickness = 1
+    partStroke.Transparency = 0.6
+    partStroke.Parent = partButton
+    
+    partButton.MouseButton1Click:Connect(function()
+        currentPartIndex = currentPartIndex + 1
+        if currentPartIndex > #hitboxParts then
+            currentPartIndex = 1
+        end
+        
+        getgenv().MMCZombie.HitboxPart = hitboxParts[currentPartIndex]
+        partButton.Text = "🎯 Hitbox Part: " .. hitboxParts[currentPartIndex]
+        
+        print("[Hitbox] Part:", hitboxParts[currentPartIndex])
+    end)
+    
+    createToggle(Content, "🎯 Zombie Hitbox Expander", function(enabled)
+        getgenv().MMCZombie.Enabled.Hitbox = enabled
+        print("[Hitbox] Expander:", enabled and "ON" or "OFF")
+        
+        if enabled then
+            hitboxConnection = RunService.Heartbeat:Connect(function()
+                frameCounter = frameCounter + 1
+                if frameCounter % 10 ~= 0 then return end -- Every 10 frames
+                
+                local size = getgenv().MMCZombie.HitboxSize or 10
+                local partName = getgenv().MMCZombie.HitboxPart or "HumanoidRootPart"
+                
+                -- Scan for zombies
+                for _, model in ipairs(Workspace:GetDescendants()) do
+                    if model:IsA("Model") and model ~= LocalPlayer.Character then
+                        local humanoid = model:FindFirstChildOfClass("Humanoid")
+                        if humanoid and not Players:GetPlayerFromCharacter(model) then
+                            -- It's a zombie
+                            local part = model:FindFirstChild(partName)
+                            if part and part:IsA("BasePart") then
+                                -- Cache original size
+                                if not hitboxCache[part] then
+                                    hitboxCache[part] = {
+                                        OriginalSize = part.Size,
+                                        OriginalTransparency = part.Transparency,
+                                        OriginalCanCollide = part.CanCollide
+                                    }
+                                end
+                                
+                                -- Expand hitbox
+                                part.Size = Vector3.new(size, size, size)
+                                part.Transparency = 0.5
+                                part.CanCollide = false
+                                part.Massless = true
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            table.insert(getgenv().MMCZombie.Connections, hitboxConnection)
+        else
+            if hitboxConnection then
+                hitboxConnection:Disconnect()
+                hitboxConnection = nil
+            end
+            
+            -- Restore all hitboxes
+            for part, data in pairs(hitboxCache) do
+                if part and part.Parent then
+                    part.Size = data.OriginalSize
+                    part.Transparency = data.OriginalTransparency
+                    part.CanCollide = data.OriginalCanCollide
+                end
+            end
+            hitboxCache = {}
         end
     end)
 end
