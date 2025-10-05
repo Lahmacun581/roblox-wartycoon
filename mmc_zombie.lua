@@ -939,21 +939,86 @@ do
     end)
 end
 
--- ===== ZOMBIE HITBOX EXPANDER =====
+-- ===== ADVANCED ZOMBIE HITBOX EXPANDER =====
 do
     getgenv().MMCZombie.HitboxSize = 10
     getgenv().MMCZombie.HitboxPart = "HumanoidRootPart"
     
     local hitboxConnection = nil
     local hitboxCache = {}
+    local zombieList = {}
     local frameCounter = 0
+    
+    -- Advanced zombie detection
+    local function isZombieModel(model)
+        if not model or not model:IsA("Model") then return false end
+        if model == LocalPlayer.Character then return false end
+        
+        local humanoid = model:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return false end
+        
+        -- Check if it's a player
+        if Players:GetPlayerFromCharacter(model) then return false end
+        
+        -- Check common zombie folders
+        local parent = model.Parent
+        if parent then
+            local parentName = parent.Name:lower()
+            if parentName:find("zombie") or parentName:find("enemy") or 
+               parentName:find("npc") or parentName:find("mob") then
+                return true
+            end
+        end
+        
+        -- Check model name
+        local modelName = model.Name:lower()
+        if modelName:find("zombie") or modelName:find("infected") or 
+           modelName:find("undead") or modelName:find("walker") then
+            return true
+        end
+        
+        -- If has humanoid but not a player, likely a zombie
+        return true
+    end
+    
+    -- Scan workspace for zombies
+    local function scanForZombies()
+        zombieList = {}
+        
+        -- Check common zombie locations
+        local zombieFolders = {
+            Workspace:FindFirstChild("Zombies"),
+            Workspace:FindFirstChild("Enemies"),
+            Workspace:FindFirstChild("NPCs"),
+            Workspace:FindFirstChild("Mobs")
+        }
+        
+        for _, folder in ipairs(zombieFolders) do
+            if folder then
+                for _, model in ipairs(folder:GetChildren()) do
+                    if isZombieModel(model) then
+                        table.insert(zombieList, model)
+                    end
+                end
+            end
+        end
+        
+        -- Scan entire workspace if no folder found
+        if #zombieList == 0 then
+            for _, model in ipairs(Workspace:GetChildren()) do
+                if isZombieModel(model) then
+                    table.insert(zombieList, model)
+                end
+            end
+        end
+    end
     
     createSlider(Content, "📏 Zombie Hitbox Size", 5, 50, 10, function(value)
         getgenv().MMCZombie.HitboxSize = value
     end)
     
     -- Hitbox Part Selection
-    local hitboxParts = {"HumanoidRootPart", "Torso", "Head", "UpperTorso"}
+    local hitboxParts = {"HumanoidRootPart", "Torso", "Head", "UpperTorso", "LowerTorso"}
     local currentPartIndex = 1
     
     local partButton = Instance.new("TextButton")
@@ -993,42 +1058,82 @@ do
         print("[Hitbox] Expander:", enabled and "ON" or "OFF")
         
         if enabled then
+            -- Initial scan
+            scanForZombies()
+            print("[Hitbox] Found", #zombieList, "zombies")
+            
             hitboxConnection = RunService.Heartbeat:Connect(function()
                 frameCounter = frameCounter + 1
-                if frameCounter % 10 ~= 0 then return end -- Every 10 frames
+                
+                -- Rescan every 60 frames (1 second)
+                if frameCounter % 60 == 0 then
+                    scanForZombies()
+                end
+                
+                -- Update hitboxes every 5 frames
+                if frameCounter % 5 ~= 0 then return end
                 
                 local size = getgenv().MMCZombie.HitboxSize or 10
                 local partName = getgenv().MMCZombie.HitboxPart or "HumanoidRootPart"
                 
-                -- Scan for zombies
-                for _, model in ipairs(Workspace:GetDescendants()) do
-                    if model:IsA("Model") and model ~= LocalPlayer.Character then
-                        local humanoid = model:FindFirstChildOfClass("Humanoid")
-                        if humanoid and not Players:GetPlayerFromCharacter(model) then
-                            -- It's a zombie
-                            local part = model:FindFirstChild(partName)
-                            if part and part:IsA("BasePart") then
-                                -- Cache original size
-                                if not hitboxCache[part] then
-                                    hitboxCache[part] = {
-                                        OriginalSize = part.Size,
-                                        OriginalTransparency = part.Transparency,
-                                        OriginalCanCollide = part.CanCollide
-                                    }
-                                end
-                                
-                                -- Expand hitbox
-                                part.Size = Vector3.new(size, size, size)
-                                part.Transparency = 0.5
-                                part.CanCollide = false
-                                part.Massless = true
-                            end
+                -- Update zombie hitboxes
+                for i = #zombieList, 1, -1 do
+                    local zombie = zombieList[i]
+                    
+                    -- Remove if zombie is dead/removed
+                    if not zombie or not zombie.Parent then
+                        table.remove(zombieList, i)
+                        continue
+                    end
+                    
+                    local humanoid = zombie:FindFirstChildOfClass("Humanoid")
+                    if not humanoid or humanoid.Health <= 0 then
+                        table.remove(zombieList, i)
+                        continue
+                    end
+                    
+                    -- Try primary part name
+                    local part = zombie:FindFirstChild(partName)
+                    
+                    -- Fallback to other parts
+                    if not part or not part:IsA("BasePart") then
+                        part = zombie:FindFirstChild("HumanoidRootPart") or 
+                               zombie:FindFirstChild("Torso") or
+                               zombie:FindFirstChild("UpperTorso")
+                    end
+                    
+                    if part and part:IsA("BasePart") then
+                        -- Cache original values
+                        if not hitboxCache[part] then
+                            hitboxCache[part] = {
+                                OriginalSize = part.Size,
+                                OriginalTransparency = part.Transparency,
+                                OriginalCanCollide = part.CanCollide
+                            }
                         end
+                        
+                        -- Expand hitbox
+                        part.Size = Vector3.new(size, size, size)
+                        part.Transparency = 0.5
+                        part.CanCollide = false
+                        part.Massless = true
+                    end
+                end
+            end)
+            
+            -- Monitor new zombies
+            local addedConn = Workspace.DescendantAdded:Connect(function(descendant)
+                if getgenv().MMCZombie.Enabled.Hitbox then
+                    task.wait(0.1)
+                    if isZombieModel(descendant) then
+                        table.insert(zombieList, descendant)
+                        print("[Hitbox] New zombie detected:", descendant.Name)
                     end
                 end
             end)
             
             table.insert(getgenv().MMCZombie.Connections, hitboxConnection)
+            table.insert(getgenv().MMCZombie.Connections, addedConn)
         else
             if hitboxConnection then
                 hitboxConnection:Disconnect()
@@ -1038,12 +1143,17 @@ do
             -- Restore all hitboxes
             for part, data in pairs(hitboxCache) do
                 if part and part.Parent then
-                    part.Size = data.OriginalSize
-                    part.Transparency = data.OriginalTransparency
-                    part.CanCollide = data.OriginalCanCollide
+                    pcall(function()
+                        part.Size = data.OriginalSize
+                        part.Transparency = data.OriginalTransparency
+                        part.CanCollide = data.OriginalCanCollide
+                    end)
                 end
             end
             hitboxCache = {}
+            zombieList = {}
+            
+            print("[Hitbox] All hitboxes restored")
         end
     end)
 end
