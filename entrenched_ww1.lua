@@ -375,10 +375,11 @@ local function createSlider(parent, text, min, max, default, callback)
     return frame
 end
 
--- ===== SILENT AIM =====
+-- ===== ADVANCED SILENT AIM =====
 do
     getgenv().EntrenchedWW1.SilentAimFOV = 150
     getgenv().EntrenchedWW1.SilentAimTeamCheck = true
+    getgenv().EntrenchedWW1.SilentAimPrediction = true
     
     createSlider(Content, "🎯 Silent Aim FOV", 50, 500, 150, function(value)
         getgenv().EntrenchedWW1.SilentAimFOV = value
@@ -389,7 +390,12 @@ do
         print("[Silent Aim] Team Check:", enabled and "ON" or "OFF")
     end)
     
-    createToggle(Content, "🎯 Silent Aim", function(enabled)
+    createToggle(Content, "🔮 Silent Aim Prediction", function(enabled)
+        getgenv().EntrenchedWW1.SilentAimPrediction = enabled
+        print("[Silent Aim] Prediction:", enabled and "ON" or "OFF")
+    end)
+    
+    createToggle(Content, "🎯 Silent Aim (Advanced)", function(enabled)
         getgenv().EntrenchedWW1.Enabled.SilentAim = enabled
         print("[Silent Aim]:", enabled and "ON" or "OFF")
         
@@ -399,45 +405,81 @@ do
                 local args = {...}
                 local method = getnamecallmethod()
                 
-                if getgenv().EntrenchedWW1.Enabled.SilentAim and method == "FireServer" and self.Name == "ShootEvent" then
-                    local camera = workspace.CurrentCamera
-                    local myChar = LocalPlayer.Character
-                    if not myChar then return oldNamecall(self, ...) end
-                    
-                    local closestPlayer = nil
-                    local closestDistance = getgenv().EntrenchedWW1.SilentAimFOV
-                    
-                    for _, player in ipairs(Players:GetPlayers()) do
-                        if player ~= LocalPlayer and player.Character then
-                            -- Team check
-                            if getgenv().EntrenchedWW1.SilentAimTeamCheck and player.Team == LocalPlayer.Team then
-                                continue
-                            end
-                            
-                            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-                            local head = player.Character:FindFirstChild("Head")
-                            
-                            if humanoid and humanoid.Health > 0 and head then
-                                local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                if getgenv().EntrenchedWW1.Enabled.SilentAim and method == "FireServer" then
+                    -- Check for common shoot event names
+                    local eventName = self.Name:lower()
+                    if eventName:find("shoot") or eventName:find("fire") or eventName:find("hit") or eventName:find("damage") then
+                        local camera = workspace.CurrentCamera
+                        local myChar = LocalPlayer.Character
+                        if not myChar then return oldNamecall(self, ...) end
+                        
+                        local closestPlayer = nil
+                        local closestDistance = getgenv().EntrenchedWW1.SilentAimFOV
+                        
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character then
+                                -- Team check
+                                if getgenv().EntrenchedWW1.SilentAimTeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                                    continue
+                                end
                                 
-                                if onScreen then
-                                    local mousePos = UserInputService:GetMouseLocation()
-                                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                                local head = player.Character:FindFirstChild("Head")
+                                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                                
+                                if humanoid and humanoid.Health > 0 and head and hrp then
+                                    local targetPos = head.Position
                                     
-                                    if distance < closestDistance then
-                                        closestDistance = distance
-                                        closestPlayer = player
+                                    -- Prediction
+                                    if getgenv().EntrenchedWW1.SilentAimPrediction and hrp.AssemblyLinearVelocity then
+                                        local velocity = hrp.AssemblyLinearVelocity
+                                        local distance = (targetPos - camera.CFrame.Position).Magnitude
+                                        local bulletSpeed = 1000 -- Adjust based on game
+                                        local travelTime = distance / bulletSpeed
+                                        targetPos = targetPos + (velocity * travelTime)
+                                    end
+                                    
+                                    local screenPos, onScreen = camera:WorldToViewportPoint(targetPos)
+                                    
+                                    if onScreen then
+                                        local mousePos = UserInputService:GetMouseLocation()
+                                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                                        
+                                        if distance < closestDistance then
+                                            closestDistance = distance
+                                            closestPlayer = player
+                                        end
                                     end
                                 end
                             end
                         end
-                    end
-                    
-                    if closestPlayer and closestPlayer.Character then
-                        local head = closestPlayer.Character:FindFirstChild("Head")
-                        if head then
-                            args[1] = head.Position
-                            return oldNamecall(self, unpack(args))
+                        
+                        if closestPlayer and closestPlayer.Character then
+                            local head = closestPlayer.Character:FindFirstChild("Head")
+                            local hrp = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            
+                            if head and hrp then
+                                local targetPos = head.Position
+                                
+                                -- Apply prediction
+                                if getgenv().EntrenchedWW1.SilentAimPrediction and hrp.AssemblyLinearVelocity then
+                                    local velocity = hrp.AssemblyLinearVelocity
+                                    local distance = (targetPos - camera.CFrame.Position).Magnitude
+                                    local bulletSpeed = 1000
+                                    local travelTime = distance / bulletSpeed
+                                    targetPos = targetPos + (velocity * travelTime)
+                                end
+                                
+                                -- Try to find position argument
+                                for i, arg in ipairs(args) do
+                                    if typeof(arg) == "Vector3" then
+                                        args[i] = targetPos
+                                        break
+                                    end
+                                end
+                                
+                                return oldNamecall(self, unpack(args))
+                            end
                         end
                     end
                 end
@@ -445,7 +487,7 @@ do
                 return oldNamecall(self, ...)
             end)
             
-            print("[Silent Aim] Hooked successfully")
+            print("[Silent Aim] Advanced hook enabled")
         end
     end)
 end
@@ -574,7 +616,7 @@ do
     end)
 end
 
--- ===== HITBOX EXPANDER =====
+-- ===== ADVANCED HITBOX EXPANDER (HEAD ONLY) =====
 do
     getgenv().EntrenchedWW1.HitboxSize = 10
     getgenv().EntrenchedWW1.HitboxTeamCheck = true
@@ -582,7 +624,7 @@ do
     local hitboxConnection = nil
     local frameCounter = 0
     
-    createSlider(Content, "📏 Hitbox Size", 5, 50, 10, function(value)
+    createSlider(Content, "🎯 Head Hitbox Size", 5, 50, 10, function(value)
         getgenv().EntrenchedWW1.HitboxSize = value
     end)
     
@@ -591,14 +633,14 @@ do
         print("[Hitbox] Team Check:", enabled and "ON" or "OFF")
     end)
     
-    createToggle(Content, "🎯 Hitbox Expander", function(enabled)
+    createToggle(Content, "🎯 Head Hitbox Expander", function(enabled)
         getgenv().EntrenchedWW1.Enabled.Hitbox = enabled
-        print("[Hitbox] Expander:", enabled and "ON" or "OFF")
+        print("[Hitbox] Head Expander:", enabled and "ON" or "OFF")
         
         if enabled then
             hitboxConnection = RunService.Heartbeat:Connect(function()
                 frameCounter = frameCounter + 1
-                if frameCounter % 10 ~= 0 then return end
+                if frameCounter % 5 ~= 0 then return end -- Faster update for head
                 
                 local size = getgenv().EntrenchedWW1.HitboxSize or 10
                 local teamCheck = getgenv().EntrenchedWW1.HitboxTeamCheck
@@ -610,22 +652,23 @@ do
                             continue
                         end
                         
-                        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                        if hrp and hrp:IsA("BasePart") then
+                        -- Only expand HEAD
+                        local head = player.Character:FindFirstChild("Head")
+                        if head and head:IsA("BasePart") then
                             -- Cache original
-                            if not getgenv().EntrenchedWW1.HitboxCache[hrp] then
-                                getgenv().EntrenchedWW1.HitboxCache[hrp] = {
-                                    OriginalSize = hrp.Size,
-                                    OriginalTransparency = hrp.Transparency,
-                                    OriginalCanCollide = hrp.CanCollide
+                            if not getgenv().EntrenchedWW1.HitboxCache[head] then
+                                getgenv().EntrenchedWW1.HitboxCache[head] = {
+                                    OriginalSize = head.Size,
+                                    OriginalTransparency = head.Transparency,
+                                    OriginalCanCollide = head.CanCollide
                                 }
                             end
                             
-                            -- Expand hitbox
-                            hrp.Size = Vector3.new(size, size, size)
-                            hrp.Transparency = 0.5
-                            hrp.CanCollide = false
-                            hrp.Massless = true
+                            -- Expand HEAD hitbox
+                            head.Size = Vector3.new(size, size, size)
+                            head.Transparency = 0.7
+                            head.CanCollide = false
+                            head.Massless = true
                         end
                     end
                 end
@@ -649,7 +692,301 @@ do
                 end
             end
             getgenv().EntrenchedWW1.HitboxCache = {}
+            print("[Hitbox] All heads restored")
         end
+    end)
+end
+
+-- ===== ESP SYSTEM =====
+do
+    local ESPEnabled = false
+    local ESPBoxEnabled = false
+    local ESPNameEnabled = false
+    local ESPHealthEnabled = false
+    local ESPDistanceEnabled = false
+    local ESPTracerEnabled = false
+    local ESPTeamCheck = true
+    
+    local ESPColor = Color3.fromRGB(139, 90, 43)
+    local ESPTeamColor = Color3.fromRGB(100, 200, 100)
+    local ESPObjects = {}
+    local ESPConnections = {}
+    local frameCount = 0
+    
+    local function createESP(player)
+        if player == LocalPlayer then return end
+        if ESPObjects[player] then return end
+        
+        local espData = {
+            player = player,
+            drawings = {}
+        }
+        
+        -- Box
+        local box = Drawing.new("Square")
+        box.Visible = false
+        box.Color = ESPColor
+        box.Thickness = 2
+        box.Transparency = 1
+        box.Filled = false
+        espData.drawings.box = box
+        
+        local boxOutline = Drawing.new("Square")
+        boxOutline.Visible = false
+        boxOutline.Color = Color3.fromRGB(0, 0, 0)
+        boxOutline.Thickness = 4
+        boxOutline.Transparency = 1
+        boxOutline.Filled = false
+        espData.drawings.boxOutline = boxOutline
+        
+        -- Name
+        local nameText = Drawing.new("Text")
+        nameText.Visible = false
+        nameText.Color = ESPColor
+        nameText.Text = player.Name
+        nameText.Size = 16
+        nameText.Center = true
+        nameText.Outline = true
+        nameText.Font = 2
+        espData.drawings.name = nameText
+        
+        -- Health Bar
+        local healthBarBg = Drawing.new("Square")
+        healthBarBg.Visible = false
+        healthBarBg.Color = Color3.fromRGB(0, 0, 0)
+        healthBarBg.Thickness = 1
+        healthBarBg.Transparency = 0.5
+        healthBarBg.Filled = true
+        espData.drawings.healthBarBg = healthBarBg
+        
+        local healthBar = Drawing.new("Square")
+        healthBar.Visible = false
+        healthBar.Color = Color3.fromRGB(0, 255, 0)
+        healthBar.Thickness = 1
+        healthBar.Transparency = 1
+        healthBar.Filled = true
+        espData.drawings.healthBar = healthBar
+        
+        -- Distance
+        local distanceText = Drawing.new("Text")
+        distanceText.Visible = false
+        distanceText.Color = Color3.fromRGB(200, 180, 150)
+        distanceText.Text = "0m"
+        distanceText.Size = 14
+        distanceText.Center = true
+        distanceText.Outline = true
+        distanceText.Font = 2
+        espData.drawings.distance = distanceText
+        
+        -- Tracer
+        local tracer = Drawing.new("Line")
+        tracer.Visible = false
+        tracer.Color = ESPColor
+        tracer.Thickness = 2
+        tracer.Transparency = 1
+        espData.drawings.tracer = tracer
+        
+        ESPObjects[player] = espData
+    end
+    
+    local function removeESP(player)
+        local espData = ESPObjects[player]
+        if espData then
+            for _, drawing in pairs(espData.drawings) do
+                drawing:Remove()
+            end
+            ESPObjects[player] = nil
+        end
+    end
+    
+    local function updateESP()
+        if not ESPEnabled then return end
+        
+        frameCount = frameCount + 1
+        if frameCount % 2 ~= 0 then return end
+        
+        local camera = workspace.CurrentCamera
+        local myChar = LocalPlayer.Character
+        if not myChar then return end
+        local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+        if not myHrp then return end
+        
+        for player, espData in pairs(ESPObjects) do
+            if not player or not player.Parent then
+                removeESP(player)
+                continue
+            end
+            
+            local char = player.Character
+            if not char then
+                for _, drawing in pairs(espData.drawings) do
+                    drawing.Visible = false
+                end
+                continue
+            end
+            
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local head = char:FindFirstChild("Head")
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            
+            if not hrp or not head or not humanoid then continue end
+            
+            -- Team Check
+            local color = ESPColor
+            if ESPTeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                for _, drawing in pairs(espData.drawings) do
+                    drawing.Visible = false
+                end
+                continue
+            end
+            
+            local hrpPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+            
+            if onScreen then
+                local headPos = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                
+                local height = math.abs(headPos.Y - legPos.Y)
+                local width = height / 2
+                local distance = (hrp.Position - myHrp.Position).Magnitude
+                
+                -- Box ESP
+                if ESPBoxEnabled then
+                    espData.drawings.boxOutline.Size = Vector2.new(width, height)
+                    espData.drawings.boxOutline.Position = Vector2.new(hrpPos.X - width/2, headPos.Y)
+                    espData.drawings.boxOutline.Visible = true
+                    
+                    espData.drawings.box.Size = Vector2.new(width, height)
+                    espData.drawings.box.Position = Vector2.new(hrpPos.X - width/2, headPos.Y)
+                    espData.drawings.box.Color = color
+                    espData.drawings.box.Visible = true
+                else
+                    espData.drawings.box.Visible = false
+                    espData.drawings.boxOutline.Visible = false
+                end
+                
+                -- Name ESP
+                if ESPNameEnabled then
+                    espData.drawings.name.Position = Vector2.new(hrpPos.X, headPos.Y - 20)
+                    espData.drawings.name.Color = color
+                    espData.drawings.name.Visible = true
+                else
+                    espData.drawings.name.Visible = false
+                end
+                
+                -- Health ESP
+                if ESPHealthEnabled then
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    local barHeight = height
+                    local barWidth = 4
+                    
+                    espData.drawings.healthBarBg.Size = Vector2.new(barWidth, barHeight)
+                    espData.drawings.healthBarBg.Position = Vector2.new(hrpPos.X - width/2 - 8, headPos.Y)
+                    espData.drawings.healthBarBg.Visible = true
+                    
+                    espData.drawings.healthBar.Size = Vector2.new(barWidth, barHeight * healthPercent)
+                    espData.drawings.healthBar.Position = Vector2.new(hrpPos.X - width/2 - 8, headPos.Y + barHeight * (1 - healthPercent))
+                    espData.drawings.healthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+                    espData.drawings.healthBar.Visible = true
+                else
+                    espData.drawings.healthBarBg.Visible = false
+                    espData.drawings.healthBar.Visible = false
+                end
+                
+                -- Distance ESP
+                if ESPDistanceEnabled then
+                    espData.drawings.distance.Text = string.format("%dm", math.floor(distance))
+                    espData.drawings.distance.Position = Vector2.new(hrpPos.X, legPos.Y + 5)
+                    espData.drawings.distance.Visible = true
+                else
+                    espData.drawings.distance.Visible = false
+                end
+                
+                -- Tracer ESP
+                if ESPTracerEnabled then
+                    local tracerStart = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                    espData.drawings.tracer.From = tracerStart
+                    espData.drawings.tracer.To = Vector2.new(hrpPos.X, hrpPos.Y)
+                    espData.drawings.tracer.Color = color
+                    espData.drawings.tracer.Visible = true
+                else
+                    espData.drawings.tracer.Visible = false
+                end
+            else
+                for _, drawing in pairs(espData.drawings) do
+                    drawing.Visible = false
+                end
+            end
+        end
+    end
+    
+    -- ESP Toggles
+    createToggle(Content, "👁️ Enable ESP", function(enabled)
+        ESPEnabled = enabled
+        
+        if enabled then
+            print("[ESP] Enabled")
+            
+            for _, player in ipairs(Players:GetPlayers()) do
+                createESP(player)
+            end
+            
+            local conn = RunService.RenderStepped:Connect(function()
+                if ESPEnabled then
+                    updateESP()
+                end
+            end)
+            table.insert(ESPConnections, conn)
+            
+            local conn2 = Players.PlayerAdded:Connect(function(player)
+                if ESPEnabled then
+                    task.wait(1)
+                    createESP(player)
+                end
+            end)
+            table.insert(ESPConnections, conn2)
+            
+            local conn3 = Players.PlayerRemoving:Connect(function(player)
+                removeESP(player)
+            end)
+            table.insert(ESPConnections, conn3)
+        else
+            print("[ESP] Disabled")
+            
+            for _, conn in ipairs(ESPConnections) do
+                conn:Disconnect()
+            end
+            ESPConnections = {}
+            
+            for player, _ in pairs(ESPObjects) do
+                removeESP(player)
+            end
+        end
+    end)
+    
+    createToggle(Content, "📦 Box ESP", function(enabled)
+        ESPBoxEnabled = enabled
+    end)
+    
+    createToggle(Content, "📝 Name ESP", function(enabled)
+        ESPNameEnabled = enabled
+    end)
+    
+    createToggle(Content, "❤️ Health ESP", function(enabled)
+        ESPHealthEnabled = enabled
+    end)
+    
+    createToggle(Content, "📏 Distance ESP", function(enabled)
+        ESPDistanceEnabled = enabled
+    end)
+    
+    createToggle(Content, "📍 Tracer ESP", function(enabled)
+        ESPTracerEnabled = enabled
+    end)
+    
+    createToggle(Content, "👥 ESP Team Check", function(enabled)
+        ESPTeamCheck = enabled
+        print("[ESP] Team Check:", enabled and "ON" or "OFF")
     end)
 end
 
