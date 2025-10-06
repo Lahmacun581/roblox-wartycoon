@@ -637,7 +637,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ===== NO RECOIL & NO SPREAD =====
+-- ===== WEAPON MODIFICATIONS =====
 print("[Weapon] Initializing...")
 
 createToggle(Content, "🔫 No Recoil", function(enabled)
@@ -645,7 +645,7 @@ createToggle(Content, "🔫 No Recoil", function(enabled)
     print("[No Recoil]", enabled and "ON" or "OFF")
 end)
 
-createToggle(Content, "🎯 No Spread", function(enabled)
+createToggle(Content, "🎯 No Spread (Advanced)", function(enabled)
     getgenv().EntrenchedWW1.Enabled.NoSpread = enabled
     print("[No Spread]", enabled and "ON" or "OFF")
 end)
@@ -665,12 +665,75 @@ createToggle(Content, "🚀 Infinite Range", function(enabled)
     print("[Infinite Range]", enabled and "ON" or "OFF")
 end)
 
+-- ===== DAMAGE MODIFICATIONS =====
+print("[Damage] Initializing...")
+getgenv().EntrenchedWW1.DamageMultiplier = 2
+
+createSlider(Content, "💥 Damage Multiplier", 1, 10, 2, function(value)
+    getgenv().EntrenchedWW1.DamageMultiplier = value
+end)
+
+createToggle(Content, "💥 Damage Boost", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.DamageBoost = enabled
+    print("[Damage Boost]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().EntrenchedWW1.Enabled.DamageBoost and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("damage") or eventName:find("hit") then
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "number" and arg > 0 and arg < 1000 then
+                            args[i] = arg * getgenv().EntrenchedWW1.DamageMultiplier
+                            break
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
+end)
+
+createToggle(Content, "💀 Critical Hit (100%)", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.CriticalHit = enabled
+    print("[Critical Hit]", enabled and "ON" or "OFF")
+end)
+
+createToggle(Content, "💣 Explosive Bullets", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.ExplosiveBullets = enabled
+    print("[Explosive Bullets]", enabled and "ON" or "OFF")
+end)
+
+createToggle(Content, "🧱 Wall Penetration", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.WallPenetration = enabled
+    print("[Wall Penetration]", enabled and "ON" or "OFF")
+end)
+
+-- ===== BULLET MODIFICATIONS =====
+print("[Bullet] Initializing...")
+getgenv().EntrenchedWW1.BulletSpeed = 5
+
+createSlider(Content, "🚀 Bullet Speed", 1, 10, 5, function(value)
+    getgenv().EntrenchedWW1.BulletSpeed = value
+end)
+
+createToggle(Content, "🚀 Bullet Speed Boost", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.BulletSpeedBoost = enabled
+    print("[Bullet Speed]", enabled and "ON" or "OFF")
+end)
+
 local weaponFrame = 0
 RunService.Heartbeat:Connect(function()
-    if not (getgenv().EntrenchedWW1.Enabled.NoRecoil or getgenv().EntrenchedWW1.Enabled.NoSpread or getgenv().EntrenchedWW1.Enabled.RapidFire or getgenv().EntrenchedWW1.Enabled.FastReload or getgenv().EntrenchedWW1.Enabled.InfiniteRange) then return end
+    if not (getgenv().EntrenchedWW1.Enabled.NoRecoil or getgenv().EntrenchedWW1.Enabled.NoSpread or getgenv().EntrenchedWW1.Enabled.RapidFire or getgenv().EntrenchedWW1.Enabled.FastReload or getgenv().EntrenchedWW1.Enabled.InfiniteRange or getgenv().EntrenchedWW1.Enabled.BulletSpeedBoost or getgenv().EntrenchedWW1.Enabled.CriticalHit or getgenv().EntrenchedWW1.Enabled.ExplosiveBullets or getgenv().EntrenchedWW1.Enabled.WallPenetration) then return end
     
     weaponFrame = weaponFrame + 1
-    if weaponFrame % 3 ~= 0 then return end
+    if weaponFrame % 2 ~= 0 then return end
     
     local char = LocalPlayer.Character
     if not char then return end
@@ -682,32 +745,56 @@ RunService.Heartbeat:Connect(function()
                 local name = obj.Name:lower()
                 
                 if getgenv().EntrenchedWW1.Enabled.NoRecoil then
-                    if name:find("recoil") or name:find("kick") then
+                    if name:find("recoil") or name:find("kick") or name:find("kickback") then
                         obj.Value = 0
                     end
                 end
                 
                 if getgenv().EntrenchedWW1.Enabled.NoSpread then
-                    if name:find("spread") or name:find("accuracy") or name:find("deviation") then
+                    if name:find("spread") or name:find("accuracy") or name:find("deviation") or name:find("inaccuracy") or name:find("sway") then
                         obj.Value = 0
                     end
                 end
                 
                 if getgenv().EntrenchedWW1.Enabled.RapidFire then
-                    if name:find("firerate") or name:find("fire") or name:find("cooldown") or name:find("delay") then
+                    if name:find("firerate") or name:find("fire") or name:find("cooldown") or name:find("delay") or name:find("rpm") then
                         obj.Value = 0.01
                     end
                 end
                 
                 if getgenv().EntrenchedWW1.Enabled.FastReload then
-                    if name:find("reload") then
+                    if name:find("reload") or name:find("reloadtime") then
                         obj.Value = 0.1
                     end
                 end
                 
                 if getgenv().EntrenchedWW1.Enabled.InfiniteRange then
-                    if name:find("range") or name:find("distance") or name:find("maxdist") then
+                    if name:find("range") or name:find("distance") or name:find("maxdist") or name:find("maxrange") then
                         obj.Value = 9999
+                    end
+                end
+                
+                if getgenv().EntrenchedWW1.Enabled.BulletSpeedBoost then
+                    if name:find("speed") or name:find("velocity") or name:find("bulletspeed") then
+                        obj.Value = obj.Value * getgenv().EntrenchedWW1.BulletSpeed
+                    end
+                end
+                
+                if getgenv().EntrenchedWW1.Enabled.CriticalHit then
+                    if name:find("critical") or name:find("crit") or name:find("critchance") then
+                        obj.Value = 100
+                    end
+                end
+                
+                if getgenv().EntrenchedWW1.Enabled.ExplosiveBullets then
+                    if name:find("explosive") or name:find("explosion") or name:find("aoe") then
+                        obj.Value = 1
+                    end
+                end
+                
+                if getgenv().EntrenchedWW1.Enabled.WallPenetration then
+                    if name:find("penetration") or name:find("pierce") or name:find("wallbang") then
+                        obj.Value = 999
                     end
                 end
             end
