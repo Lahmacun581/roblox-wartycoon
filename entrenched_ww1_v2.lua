@@ -498,6 +498,86 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- ===== TRIGGER BOT =====
+print("[Trigger Bot] Initializing...")
+getgenv().EntrenchedWW1.TriggerBotDelay = 0.1
+getgenv().EntrenchedWW1.TriggerBotTeamCheck = true
+
+createSlider(Content, "🎯 Trigger Bot Delay", 0, 500, 100, function(value)
+    getgenv().EntrenchedWW1.TriggerBotDelay = value / 1000
+end)
+
+createToggle(Content, "👥 Trigger Bot Team Check", function(enabled)
+    getgenv().EntrenchedWW1.TriggerBotTeamCheck = enabled
+    print("[Trigger Bot] Team Check:", enabled and "ON" or "OFF")
+end)
+
+createToggle(Content, "🎯 Trigger Bot (Auto Shoot)", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.TriggerBot = enabled
+    print("[Trigger Bot]", enabled and "ON" or "OFF")
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not getgenv().EntrenchedWW1.Enabled.TriggerBot then return end
+    
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    
+    local mouse = LocalPlayer:GetMouse()
+    if not mouse then return end
+    
+    local target = mouse.Target
+    if not target then return end
+    
+    local targetModel = target:FindFirstAncestorOfClass("Model")
+    if not targetModel then return end
+    
+    local targetPlayer = Players:GetPlayerFromCharacter(targetModel)
+    if not targetPlayer or targetPlayer == LocalPlayer then return end
+    
+    -- Team check
+    if getgenv().EntrenchedWW1.TriggerBotTeamCheck and targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then
+        return
+    end
+    
+    local humanoid = targetModel:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return end
+    
+    task.wait(getgenv().EntrenchedWW1.TriggerBotDelay)
+    mouse1click()
+end)
+
+-- ===== ONE SHOT KILL =====
+print("[One Shot Kill] Initializing...")
+
+createToggle(Content, "💀 One Shot Kill", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.OneShotKill = enabled
+    print("[One Shot Kill]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().EntrenchedWW1.Enabled.OneShotKill and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("damage") or eventName:find("hit") or eventName:find("shoot") then
+                    -- Modify damage argument
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "number" and arg > 0 and arg < 1000 then
+                            args[i] = 999999
+                            break
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
+end)
+
 -- ===== INFINITE AMMO =====
 print("[Infinite Ammo] Initializing...")
 
