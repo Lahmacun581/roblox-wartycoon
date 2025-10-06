@@ -351,13 +351,13 @@ end)
 
 -- ===== SILENT AIM =====
 print("[Silent Aim] Initializing...")
-getgenv().EntrenchedWW1.SilentAimFOV = 200
+getgenv().EntrenchedWW1.SilentAimFOV = 300
 
-createSlider(Content, "🎯 Silent Aim FOV", 50, 500, 200, function(value)
+createSlider(Content, "🎯 Silent Aim FOV", 50, 1000, 300, function(value)
     getgenv().EntrenchedWW1.SilentAimFOV = value
 end)
 
-createToggle(Content, "🎯 Silent Aim (Advanced)", function(enabled)
+createToggle(Content, "🎯 Silent Aim", function(enabled)
     getgenv().EntrenchedWW1.Enabled.SilentAim = enabled
     print("[Silent Aim]", enabled and "ON" or "OFF")
     
@@ -369,7 +369,7 @@ createToggle(Content, "🎯 Silent Aim (Advanced)", function(enabled)
             
             if getgenv().EntrenchedWW1.Enabled.SilentAim and method == "FireServer" then
                 local eventName = tostring(self.Name):lower()
-                if eventName:find("shoot") or eventName:find("fire") or eventName:find("hit") or eventName:find("damage") then
+                if eventName:find("shoot") or eventName:find("fire") or eventName:find("hit") or eventName:find("damage") or eventName:find("bullet") then
                     local camera = workspace.CurrentCamera
                     if not camera then return oldNamecall(self, ...) end
                     
@@ -412,6 +412,126 @@ createToggle(Content, "🎯 Silent Aim (Advanced)", function(enabled)
             
             return oldNamecall(self, unpack(args))
         end)
+    end
+end)
+
+-- ===== AIMBOT =====
+print("[Aimbot] Initializing...")
+getgenv().EntrenchedWW1.AimbotFOV = 200
+getgenv().EntrenchedWW1.AimbotSmooth = 5
+
+createSlider(Content, "🎯 Aimbot FOV", 50, 1000, 200, function(value)
+    getgenv().EntrenchedWW1.AimbotFOV = value
+end)
+
+createSlider(Content, "   Aimbot Smooth", 1, 20, 5, function(value)
+    getgenv().EntrenchedWW1.AimbotSmooth = value
+end)
+
+createToggle(Content, "🎯 Aimbot (Hold Right Click)", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.Aimbot = enabled
+    print("[Aimbot]", enabled and "ON" or "OFF")
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not getgenv().EntrenchedWW1.Enabled.Aimbot then return end
+    if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
+    
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    
+    local closest = nil
+    local closestDist = getgenv().EntrenchedWW1.AimbotFOV
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local head = player.Character:FindFirstChild("Head")
+            
+            if humanoid and humanoid.Health > 0 and head then
+                local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    
+                    if dist < closestDist then
+                        closestDist = dist
+                        closest = player
+                    end
+                end
+            end
+        end
+    end
+    
+    if closest and closest.Character then
+        local head = closest.Character:FindFirstChild("Head")
+        if head then
+            local targetPos = head.Position
+            local currentCFrame = camera.CFrame
+            local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
+            
+            local smooth = getgenv().EntrenchedWW1.AimbotSmooth
+            camera.CFrame = currentCFrame:Lerp(targetCFrame, 1 / smooth)
+        end
+    end
+end)
+
+-- ===== INFINITE AMMO =====
+print("[Infinite Ammo] Initializing...")
+
+createToggle(Content, "∞ Infinite Ammo", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.InfiniteAmmo = enabled
+    print("[Infinite Ammo]", enabled and "ON" or "OFF")
+end)
+
+local ammoFrame = 0
+RunService.Heartbeat:Connect(function()
+    if not getgenv().EntrenchedWW1.Enabled.InfiniteAmmo then return end
+    
+    ammoFrame = ammoFrame + 1
+    if ammoFrame % 3 ~= 0 then return end
+    
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then
+        for _, obj in ipairs(tool:GetDescendants()) do
+            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                local name = obj.Name:lower()
+                if name:find("ammo") or name:find("mag") or name:find("clip") or name:find("bullet") or name:find("round") then
+                    obj.Value = 999
+                end
+            end
+        end
+        
+        local config = tool:FindFirstChild("Configuration") or tool:FindFirstChild("Config") or tool:FindFirstChild("Settings")
+        if config then
+            for _, obj in ipairs(config:GetChildren()) do
+                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                    local name = obj.Name:lower()
+                    if name:find("ammo") or name:find("mag") or name:find("clip") then
+                        obj.Value = 999
+                    end
+                end
+            end
+        end
+    end
+    
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, backpackTool in ipairs(backpack:GetChildren()) do
+            if backpackTool:IsA("Tool") then
+                for _, obj in ipairs(backpackTool:GetDescendants()) do
+                    if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                        local name = obj.Name:lower()
+                        if name:find("ammo") or name:find("mag") or name:find("clip") then
+                            obj.Value = 999
+                        end
+                    end
+                end
+            end
+        end
     end
 end)
 
