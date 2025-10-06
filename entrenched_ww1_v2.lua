@@ -685,6 +685,57 @@ createToggle(Content, "🔄 Fast Reload", function(enabled)
     print("[Fast Reload]", enabled and "ON" or "OFF")
 end)
 
+-- ===== BURST FIRE MODE =====
+print("[Burst Fire] Initializing...")
+getgenv().EntrenchedWW1.BurstCount = 3
+getgenv().EntrenchedWW1.BurstDelay = 50
+
+createSlider(Content, "💥 Burst Count", 2, 10, 3, function(value)
+    getgenv().EntrenchedWW1.BurstCount = value
+end)
+
+createSlider(Content, "   Burst Delay (ms)", 10, 200, 50, function(value)
+    getgenv().EntrenchedWW1.BurstDelay = value
+end)
+
+createToggle(Content, "💥 Burst Fire Mode", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.BurstFire = enabled
+    print("[Burst Fire]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        local shooting = false
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().EntrenchedWW1.Enabled.BurstFire and method == "FireServer" and not shooting then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("shoot") or eventName:find("fire") then
+                    shooting = true
+                    
+                    -- Fire burst
+                    task.spawn(function()
+                        local count = getgenv().EntrenchedWW1.BurstCount
+                        local delay = getgenv().EntrenchedWW1.BurstDelay / 1000
+                        
+                        for i = 1, count - 1 do
+                            task.wait(delay)
+                            pcall(function()
+                                self:FireServer(unpack(args))
+                            end)
+                        end
+                        
+                        shooting = false
+                    end)
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
+end)
+
 createToggle(Content, "🚀 Infinite Range", function(enabled)
     getgenv().EntrenchedWW1.Enabled.InfiniteRange = enabled
     print("[Infinite Range]", enabled and "ON" or "OFF")
@@ -693,9 +744,14 @@ end)
 -- ===== DAMAGE MODIFICATIONS =====
 print("[Damage] Initializing...")
 getgenv().EntrenchedWW1.DamageMultiplier = 2
+getgenv().EntrenchedWW1.HeadshotMultiplier = 3
 
 createSlider(Content, "💥 Damage Multiplier", 1, 10, 2, function(value)
     getgenv().EntrenchedWW1.DamageMultiplier = value
+end)
+
+createSlider(Content, "🎯 Headshot Multiplier", 1, 10, 3, function(value)
+    getgenv().EntrenchedWW1.HeadshotMultiplier = value
 end)
 
 createToggle(Content, "💥 Damage Boost", function(enabled)
@@ -725,6 +781,40 @@ createToggle(Content, "💥 Damage Boost", function(enabled)
     end
 end)
 
+createToggle(Content, "🎯 Headshot Damage Boost", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.HeadshotBoost = enabled
+    print("[Headshot Boost]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().EntrenchedWW1.Enabled.HeadshotBoost and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("damage") or eventName:find("hit") or eventName:find("headshot") then
+                    -- Check if hit part is Head
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "Instance" and arg.Name == "Head" then
+                            -- Find damage value and multiply
+                            for j, dmg in ipairs(args) do
+                                if typeof(dmg) == "number" and dmg > 0 and dmg < 1000 then
+                                    args[j] = dmg * getgenv().EntrenchedWW1.HeadshotMultiplier
+                                    break
+                                end
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
+end)
+
 createToggle(Content, "💀 Critical Hit (100%)", function(enabled)
     getgenv().EntrenchedWW1.Enabled.CriticalHit = enabled
     print("[Critical Hit]", enabled and "ON" or "OFF")
@@ -735,9 +825,77 @@ createToggle(Content, "💣 Explosive Bullets", function(enabled)
     print("[Explosive Bullets]", enabled and "ON" or "OFF")
 end)
 
-createToggle(Content, "🧱 Wall Penetration", function(enabled)
+createToggle(Content, "🧱 Wall Penetration (Advanced)", function(enabled)
     getgenv().EntrenchedWW1.Enabled.WallPenetration = enabled
     print("[Wall Penetration]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        -- Make bullets ignore walls
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().EntrenchedWW1.Enabled.WallPenetration and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("shoot") or eventName:find("fire") or eventName:find("raycast") then
+                    -- Modify raycast to ignore walls
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "RaycastParams" then
+                            arg.FilterType = Enum.RaycastFilterType.Blacklist
+                            arg.IgnoreWater = true
+                            args[i] = arg
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
+end)
+
+createToggle(Content, "🎯 Multi-Target Hit", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.MultiTarget = enabled
+    print("[Multi-Target]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        -- Hit multiple targets with one shot
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().EntrenchedWW1.Enabled.MultiTarget and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("hit") or eventName:find("damage") then
+                    -- Fire event for all nearby enemies
+                    local camera = workspace.CurrentCamera
+                    if camera then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character then
+                                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                                local head = player.Character:FindFirstChild("Head")
+                                
+                                if humanoid and humanoid.Health > 0 and head then
+                                    local distance = (head.Position - camera.CFrame.Position).Magnitude
+                                    if distance < 200 then
+                                        task.spawn(function()
+                                            pcall(function()
+                                                self:FireServer(unpack(args))
+                                            end)
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
 end)
 
 -- ===== BULLET MODIFICATIONS =====
