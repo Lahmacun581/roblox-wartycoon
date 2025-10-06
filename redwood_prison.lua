@@ -647,6 +647,173 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- ===== MOVEMENT =====
+print("[Movement] Initializing...")
+
+createToggle(Content, "⚡ Speed Hack", function(enabled)
+    getgenv().RedwoodPrison.Enabled.Speed = enabled
+    print("[Speed Hack]", enabled and "ON" or "OFF")
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not getgenv().RedwoodPrison.Enabled.Speed then return end
+    
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 100
+        end
+    end
+end)
+
+createToggle(Content, "🚀 Jump Power", function(enabled)
+    getgenv().RedwoodPrison.Enabled.JumpPower = enabled
+    print("[Jump Power]", enabled and "ON" or "OFF")
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not getgenv().RedwoodPrison.Enabled.JumpPower then return end
+    
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = 150
+        end
+    end
+end)
+
+createToggle(Content, "✈️ Fly Mode", function(enabled)
+    getgenv().RedwoodPrison.Enabled.Fly = enabled
+    print("[Fly Mode]", enabled and "ON" or "OFF")
+    
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    if enabled then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Name = "FlyVelocity"
+        bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = hrp
+        
+        local bodyGyro = Instance.new("BodyGyro")
+        bodyGyro.Name = "FlyGyro"
+        bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bodyGyro.P = 9e4
+        bodyGyro.Parent = hrp
+        
+        RunService.RenderStepped:Connect(function()
+            if not getgenv().RedwoodPrison.Enabled.Fly then
+                if hrp:FindFirstChild("FlyVelocity") then
+                    hrp.FlyVelocity:Destroy()
+                end
+                if hrp:FindFirstChild("FlyGyro") then
+                    hrp.FlyGyro:Destroy()
+                end
+                return
+            end
+            
+            local camera = workspace.CurrentCamera
+            local speed = 100
+            
+            local velocity = Vector3.new(0, 0, 0)
+            
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                velocity = velocity + camera.CFrame.LookVector * speed
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                velocity = velocity - camera.CFrame.LookVector * speed
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                velocity = velocity - camera.CFrame.RightVector * speed
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                velocity = velocity + camera.CFrame.RightVector * speed
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                velocity = velocity + Vector3.new(0, speed, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                velocity = velocity - Vector3.new(0, speed, 0)
+            end
+            
+            if hrp:FindFirstChild("FlyVelocity") then
+                hrp.FlyVelocity.Velocity = velocity
+            end
+            if hrp:FindFirstChild("FlyGyro") then
+                hrp.FlyGyro.CFrame = camera.CFrame
+            end
+        end)
+    else
+        if hrp:FindFirstChild("FlyVelocity") then
+            hrp.FlyVelocity:Destroy()
+        end
+        if hrp:FindFirstChild("FlyGyro") then
+            hrp.FlyGyro:Destroy()
+        end
+    end
+end)
+
+createToggle(Content, "🧱 No Clip (Advanced)", function(enabled)
+    getgenv().RedwoodPrison.Enabled.NoClip = enabled
+    print("[No Clip]", enabled and "ON" or "OFF")
+end)
+
+RunService.Stepped:Connect(function()
+    if not getgenv().RedwoodPrison.Enabled.NoClip then return end
+    
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- ===== DEFENSE =====
+print("[Defense] Initializing...")
+
+createToggle(Content, "❤️ Infinite Health", function(enabled)
+    getgenv().RedwoodPrison.Enabled.InfiniteHealth = enabled
+    print("[Infinite Health]", enabled and "ON" or "OFF")
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not getgenv().RedwoodPrison.Enabled.InfiniteHealth then return end
+    
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end
+end)
+
+createToggle(Content, "🛡️ Anti Ragdoll", function(enabled)
+    getgenv().RedwoodPrison.Enabled.AntiRagdoll = enabled
+    print("[Anti Ragdoll]", enabled and "ON" or "OFF")
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not getgenv().RedwoodPrison.Enabled.AntiRagdoll then return end
+    
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end
+end)
+
 -- Keyboard shortcuts
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
