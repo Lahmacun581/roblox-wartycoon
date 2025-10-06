@@ -616,7 +616,7 @@ do
     end)
 end
 
--- ===== HITBOX EXPANDER (WARFARE STYLE) =====
+-- ===== ADVANCED HITBOX EXPANDER WITH BYPASS =====
 do
     getgenv().EntrenchedWW1.Enabled.Hitbox = false
     getgenv().EntrenchedWW1.HitboxSize = 10
@@ -633,7 +633,7 @@ do
         print("[Hitbox] Team Check:", enabled and "ON" or "OFF")
     end)
     
-    createToggle(Content, "🎯 Hitbox Expander", function(enabled)
+    createToggle(Content, "🎯 Hitbox Expander (Bypass)", function(enabled)
         getgenv().EntrenchedWW1.Enabled.Hitbox = enabled
         print("[Hitbox] Expander:", enabled and "ON" or "OFF")
         
@@ -657,11 +657,12 @@ do
         end
     end)
     
+    -- BYPASS: Use RenderStepped instead of Heartbeat (runs before rendering)
     local hitboxFrameCount = 0
-    RunService.Heartbeat:Connect(function()
+    local hitboxConnection = RunService.RenderStepped:Connect(function()
         if getgenv().EntrenchedWW1.Enabled.Hitbox then
             hitboxFrameCount = hitboxFrameCount + 1
-            if hitboxFrameCount % 10 ~= 0 then return end
+            if hitboxFrameCount % 5 ~= 0 then return end -- Faster update (5 frames)
 
             local size = getgenv().EntrenchedWW1.HitboxSize
             local partName = getgenv().EntrenchedWW1.HitboxPart
@@ -672,6 +673,12 @@ do
                 if player ~= LocalPlayer and player.Character then
                     -- Team check
                     if teamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                        continue
+                    end
+                    
+                    -- Check if alive
+                    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                    if not humanoid or humanoid.Health <= 0 then
                         continue
                     end
                     
@@ -709,18 +716,31 @@ do
                                 Massless = part.Massless,
                             }
                         end
-                        -- Apply enlarged state (INVISIBLE)
-                        pcall(function()
-                            part.Size = Vector3.new(size, size, size)
-                            part.Transparency = 1 -- Completely invisible
-                            part.CanCollide = false
-                            part.Massless = true
+                        
+                        -- BYPASS METHOD 1: Use task.spawn for async execution
+                        task.spawn(function()
+                            pcall(function()
+                                -- BYPASS METHOD 2: Set properties in specific order
+                                part.CanCollide = false
+                                part.Massless = true
+                                
+                                -- BYPASS METHOD 3: Use wait() to avoid detection
+                                task.wait()
+                                
+                                -- Apply size change
+                                part.Size = Vector3.new(size, size, size)
+                                
+                                -- BYPASS METHOD 4: Keep original transparency or make fully invisible
+                                part.Transparency = 1
+                            end)
                         end)
                     end
                 end
             end
         end
     end)
+    
+    table.insert(getgenv().EntrenchedWW1.Connections, hitboxConnection)
 end
 
 -- ===== ESP SYSTEM =====
