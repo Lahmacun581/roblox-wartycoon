@@ -674,6 +674,76 @@ RunService.Stepped:Connect(function()
     end
 end)
 
+-- ===== DAMAGE MODS =====
+print("[Damage] Initializing...")
+getgenv().MMCZombie.HeadshotMultiplier = 5
+
+createSlider(Content, "🎯 Headshot Multiplier", 1, 10, 5, function(value)
+    getgenv().MMCZombie.HeadshotMultiplier = value
+end)
+
+createToggle(Content, "💀 One Shot Kill Zombies", function(enabled)
+    getgenv().MMCZombie.Enabled.OneShotKill = enabled
+    print("[One Shot Kill]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().MMCZombie.Enabled.OneShotKill and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("damage") or eventName:find("hit") or eventName:find("shoot") then
+                    -- Set damage to 999999
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "number" and arg > 0 and arg < 1000 then
+                            args[i] = 999999
+                            break
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
+end)
+
+createToggle(Content, "🎯 Headshot Damage Boost", function(enabled)
+    getgenv().MMCZombie.Enabled.HeadshotBoost = enabled
+    print("[Headshot Boost]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().MMCZombie.Enabled.HeadshotBoost and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("damage") or eventName:find("hit") or eventName:find("headshot") then
+                    -- Check if hit part is Head
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "Instance" and arg.Name == "Head" then
+                            -- Find damage value and multiply
+                            for j, dmg in ipairs(args) do
+                                if typeof(dmg) == "number" and dmg > 0 and dmg < 1000 then
+                                    args[j] = dmg * getgenv().MMCZombie.HeadshotMultiplier
+                                    break
+                                end
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
+end)
+
 -- ===== ZOMBIE CONTROL =====
 print("[Zombie Control] Initializing...")
 
@@ -694,15 +764,32 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+createToggle(Content, "💀 Kill All Zombies", function(enabled)
+    if enabled then
+        local zombies = findZombies()
+        local count = 0
+        
+        for _, zombie in ipairs(zombies) do
+            local humanoid = zombie:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.Health = 0
+                count = count + 1
+            end
+        end
+        
+        print("[Kill All] Killed " .. count .. " zombies!")
+    end
+end)
+
 -- ===== MONEY SYSTEM =====
 print("[Money] Initializing...")
 getgenv().MMCZombie.MoneyMultiplier = 2
 
-createSlider(Content, "💰 Money Multiplier", 1, 10, 2, function(value)
+createSlider(Content, "💰 Money/Points Multiplier", 1, 10, 2, function(value)
     getgenv().MMCZombie.MoneyMultiplier = value
 end)
 
-createToggle(Content, "💰 Money Boost", function(enabled)
+createToggle(Content, "💰 Money/Points Boost", function(enabled)
     getgenv().MMCZombie.Enabled.MoneyBoost = enabled
     print("[Money Boost]", enabled and "ON" or "OFF")
     
@@ -714,7 +801,7 @@ createToggle(Content, "💰 Money Boost", function(enabled)
             
             if getgenv().MMCZombie.Enabled.MoneyBoost and method == "FireServer" then
                 local eventName = tostring(self.Name):lower()
-                if eventName:find("money") or eventName:find("cash") or eventName:find("coin") or eventName:find("currency") then
+                if eventName:find("money") or eventName:find("cash") or eventName:find("coin") or eventName:find("currency") or eventName:find("point") or eventName:find("credit") then
                     for i, arg in ipairs(args) do
                         if typeof(arg) == "number" and arg > 0 then
                             args[i] = arg * getgenv().MMCZombie.MoneyMultiplier
@@ -726,6 +813,40 @@ createToggle(Content, "💰 Money Boost", function(enabled)
             
             return oldNamecall(self, unpack(args))
         end)
+    end
+end)
+
+createToggle(Content, "∞ Infinite Money/Points", function(enabled)
+    getgenv().MMCZombie.Enabled.InfiniteMoney = enabled
+    print("[Infinite Money]", enabled and "ON" or "OFF")
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not getgenv().MMCZombie.Enabled.InfiniteMoney then return end
+    
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    -- Find money/points values
+    for _, obj in ipairs(LocalPlayer:GetDescendants()) do
+        if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+            local name = obj.Name:lower()
+            if name:find("money") or name:find("cash") or name:find("point") or name:find("coin") or name:find("currency") or name:find("credit") then
+                obj.Value = 999999
+            end
+        end
+    end
+    
+    -- Check PlayerGui
+    if PlayerGui then
+        for _, obj in ipairs(PlayerGui:GetDescendants()) do
+            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                local name = obj.Name:lower()
+                if name:find("money") or name:find("cash") or name:find("point") or name:find("coin") or name:find("currency") or name:find("credit") then
+                    obj.Value = 999999
+                end
+            end
+        end
     end
 end)
 
