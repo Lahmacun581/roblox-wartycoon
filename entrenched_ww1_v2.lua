@@ -352,9 +352,15 @@ end)
 -- ===== SILENT AIM =====
 print("[Silent Aim] Initializing...")
 getgenv().EntrenchedWW1.SilentAimFOV = 300
+getgenv().EntrenchedWW1.SilentAimTeamCheck = true
 
 createSlider(Content, "🎯 Silent Aim FOV", 50, 1000, 300, function(value)
     getgenv().EntrenchedWW1.SilentAimFOV = value
+end)
+
+createToggle(Content, "👥 Silent Aim Team Check", function(enabled)
+    getgenv().EntrenchedWW1.SilentAimTeamCheck = enabled
+    print("[Silent Aim] Team Check:", enabled and "ON" or "OFF")
 end)
 
 createToggle(Content, "🎯 Silent Aim", function(enabled)
@@ -378,6 +384,11 @@ createToggle(Content, "🎯 Silent Aim", function(enabled)
                     
                     for _, player in ipairs(Players:GetPlayers()) do
                         if player ~= LocalPlayer and player.Character then
+                            -- Team check
+                            if getgenv().EntrenchedWW1.SilentAimTeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                                continue
+                            end
+                            
                             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
                             local head = player.Character:FindFirstChild("Head")
                             
@@ -419,6 +430,7 @@ end)
 print("[Aimbot] Initializing...")
 getgenv().EntrenchedWW1.AimbotFOV = 200
 getgenv().EntrenchedWW1.AimbotSmooth = 5
+getgenv().EntrenchedWW1.AimbotTeamCheck = true
 
 createSlider(Content, "🎯 Aimbot FOV", 50, 1000, 200, function(value)
     getgenv().EntrenchedWW1.AimbotFOV = value
@@ -426,6 +438,11 @@ end)
 
 createSlider(Content, "   Aimbot Smooth", 1, 20, 5, function(value)
     getgenv().EntrenchedWW1.AimbotSmooth = value
+end)
+
+createToggle(Content, "👥 Aimbot Team Check", function(enabled)
+    getgenv().EntrenchedWW1.AimbotTeamCheck = enabled
+    print("[Aimbot] Team Check:", enabled and "ON" or "OFF")
 end)
 
 createToggle(Content, "🎯 Aimbot (Hold Right Click)", function(enabled)
@@ -445,6 +462,11 @@ RunService.RenderStepped:Connect(function()
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
+            -- Team check
+            if getgenv().EntrenchedWW1.AimbotTeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                continue
+            end
+            
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
             local head = player.Character:FindFirstChild("Head")
             
@@ -548,12 +570,27 @@ createToggle(Content, "🎯 No Spread", function(enabled)
     print("[No Spread]", enabled and "ON" or "OFF")
 end)
 
+createToggle(Content, "⚡ Rapid Fire", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.RapidFire = enabled
+    print("[Rapid Fire]", enabled and "ON" or "OFF")
+end)
+
+createToggle(Content, "🔄 Fast Reload", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.FastReload = enabled
+    print("[Fast Reload]", enabled and "ON" or "OFF")
+end)
+
+createToggle(Content, "🚀 Infinite Range", function(enabled)
+    getgenv().EntrenchedWW1.Enabled.InfiniteRange = enabled
+    print("[Infinite Range]", enabled and "ON" or "OFF")
+end)
+
 local weaponFrame = 0
 RunService.Heartbeat:Connect(function()
-    if not (getgenv().EntrenchedWW1.Enabled.NoRecoil or getgenv().EntrenchedWW1.Enabled.NoSpread) then return end
+    if not (getgenv().EntrenchedWW1.Enabled.NoRecoil or getgenv().EntrenchedWW1.Enabled.NoSpread or getgenv().EntrenchedWW1.Enabled.RapidFire or getgenv().EntrenchedWW1.Enabled.FastReload or getgenv().EntrenchedWW1.Enabled.InfiniteRange) then return end
     
     weaponFrame = weaponFrame + 1
-    if weaponFrame % 5 ~= 0 then return end
+    if weaponFrame % 3 ~= 0 then return end
     
     local char = LocalPlayer.Character
     if not char then return end
@@ -571,8 +608,26 @@ RunService.Heartbeat:Connect(function()
                 end
                 
                 if getgenv().EntrenchedWW1.Enabled.NoSpread then
-                    if name:find("spread") or name:find("accuracy") then
+                    if name:find("spread") or name:find("accuracy") or name:find("deviation") then
                         obj.Value = 0
+                    end
+                end
+                
+                if getgenv().EntrenchedWW1.Enabled.RapidFire then
+                    if name:find("firerate") or name:find("fire") or name:find("cooldown") or name:find("delay") then
+                        obj.Value = 0.01
+                    end
+                end
+                
+                if getgenv().EntrenchedWW1.Enabled.FastReload then
+                    if name:find("reload") then
+                        obj.Value = 0.1
+                    end
+                end
+                
+                if getgenv().EntrenchedWW1.Enabled.InfiniteRange then
+                    if name:find("range") or name:find("distance") or name:find("maxdist") then
+                        obj.Value = 9999
                     end
                 end
             end
@@ -588,6 +643,7 @@ local ESPBox = false
 local ESPName = false
 local ESPHealth = false
 local ESPDistance = false
+local ESPTeamCheck = true
 
 createToggle(Content, "👁️ Enable ESP", function(enabled)
     ESPEnabled = enabled
@@ -617,6 +673,11 @@ end)
 
 createToggle(Content, "📏 Distance ESP", function(enabled)
     ESPDistance = enabled
+end)
+
+createToggle(Content, "👥 ESP Team Check", function(enabled)
+    ESPTeamCheck = enabled
+    print("[ESP] Team Check:", enabled and "ON" or "OFF")
 end)
 
 local function createESP(player)
@@ -670,6 +731,14 @@ RunService.RenderStepped:Connect(function()
             
             local data = getgenv().EntrenchedWW1.ESPObjects[player]
             if data and player.Character then
+                -- Team check
+                if ESPTeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                    for _, drawing in pairs(data.drawings) do
+                        drawing.Visible = false
+                    end
+                    continue
+                end
+                
                 local hrp = player.Character:FindFirstChild("HumanoidRootPart")
                 local head = player.Character:FindFirstChild("Head")
                 local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
