@@ -645,9 +645,34 @@ createToggle(Content, "🔫 No Recoil", function(enabled)
     print("[No Recoil]", enabled and "ON" or "OFF")
 end)
 
-createToggle(Content, "🎯 No Spread (Advanced)", function(enabled)
+createToggle(Content, "🎯 No Spread (Ultra)", function(enabled)
     getgenv().EntrenchedWW1.Enabled.NoSpread = enabled
     print("[No Spread]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        -- Hook for spread removal
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().EntrenchedWW1.Enabled.NoSpread and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("shoot") or eventName:find("fire") or eventName:find("bullet") then
+                    -- Remove spread from Vector3 arguments
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "Vector3" then
+                            -- Normalize direction (remove spread)
+                            local normalized = arg.Unit
+                            args[i] = normalized * arg.Magnitude
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
+    end
 end)
 
 createToggle(Content, "⚡ Rapid Fire", function(enabled)
