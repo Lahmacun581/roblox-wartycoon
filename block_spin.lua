@@ -374,33 +374,83 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-createToggle(Content, "⚡ Kill Aura", function(enabled)
+createToggle(Content, "⚡ Kill Aura (Advanced)", function(enabled)
     getgenv().BlockSpin.Enabled.KillAura = enabled
     print("[Kill Aura]", enabled and "ON" or "OFF")
 end)
 
-RunService.Heartbeat:Connect(function()
+local killAuraFrame = 0
+RunService.RenderStepped:Connect(function()
     if not getgenv().BlockSpin.Enabled.KillAura then return end
+    
+    killAuraFrame = killAuraFrame + 1
+    if killAuraFrame % 3 ~= 0 then return end
     
     local myChar = LocalPlayer.Character
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+    
+    local myHrp = myChar.HumanoidRootPart
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    
+    local attackedThisFrame = false
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
             local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            local head = player.Character:FindFirstChild("Head")
             
-            if humanoid and humanoid.Health > 0 and hrp then
-                local dist = (hrp.Position - myChar.HumanoidRootPart.Position).Magnitude
+            if humanoid and humanoid.Health > 0 and hrp and head then
+                local dist = (hrp.Position - myHrp.Position).Magnitude
                 
                 if dist <= getgenv().BlockSpin.AttackRange then
-                    task.spawn(function()
-                        mouse1click()
+                    -- Aim at target
+                    camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+                    
+                    -- Attack
+                    if not attackedThisFrame then
+                        task.spawn(function()
+                            pcall(function()
+                                mouse1press()
+                                task.wait(0.05)
+                                mouse1release()
+                            end)
+                        end)
+                        attackedThisFrame = true
                         task.wait(getgenv().BlockSpin.AttackDelay)
-                    end)
+                    end
                 end
             end
         end
+    end
+end)
+
+createToggle(Content, "🚀 Reach Extender", function(enabled)
+    getgenv().BlockSpin.Enabled.ReachExtender = enabled
+    print("[Reach Extender]", enabled and "ON" or "OFF")
+    
+    if enabled then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local args = {...}
+            local method = getnamecallmethod()
+            
+            if getgenv().BlockSpin.Enabled.ReachExtender and method == "FireServer" then
+                local eventName = tostring(self.Name):lower()
+                if eventName:find("attack") or eventName:find("hit") or eventName:find("damage") or eventName:find("swing") then
+                    -- Extend reach by modifying distance/range arguments
+                    for i, arg in ipairs(args) do
+                        if typeof(arg) == "number" and arg > 0 and arg < 100 then
+                            args[i] = 9999
+                            break
+                        end
+                    end
+                end
+            end
+            
+            return oldNamecall(self, unpack(args))
+        end)
     end
 end)
 
