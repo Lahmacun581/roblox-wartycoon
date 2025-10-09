@@ -14,10 +14,22 @@ print("[Stealth Injector] Loading advanced anti-detection system...")
 -- ===== CONFIGURATION =====
 local STEALTH_MODE = true
 local HIDE_CE_WINDOW = true
-local RENAME_PROCESS = true
-local HOOK_DETECTION = true
-local FAKE_PROCESS_NAME = "explorer.exe"  -- CE'yi bu isimle göster
+local RENAME_PROCESS = false  -- DISABLED: Causes Metin2 crash
+local HOOK_DETECTION = false  -- DISABLED: Causes Metin2 crash
+local SAFE_MODE = true  -- ENABLED: Safe stealth mode
+local FAKE_PROCESS_NAME = "explorer.exe"
 local FAKE_WINDOW_TITLE = "Windows Explorer"
+
+-- Safe stealth options (won't crash Metin2)
+local SAFE_STEALTH = {
+    hideWindow = true,          -- Hide CE window (SAFE)
+    hideFromTaskbar = true,     -- Hide from taskbar (SAFE)
+    minimizeToTray = true,      -- Minimize to system tray (SAFE)
+    transparentWindow = false,  -- Make window transparent (SAFE but visible)
+    bypassDebugger = true,      -- Bypass debugger detection (SAFE)
+    bypassIntegrity = false,    -- Bypass integrity checks (RISKY - can crash)
+    bypassCRC = false,          -- Bypass CRC checks (RISKY - can crash)
+}
 
 -- ===== PROCESS HIDING =====
 local function hideCheatEngineProcess()
@@ -51,30 +63,45 @@ local function hideCheatEngineProcess()
     end
 end
 
--- ===== WINDOW HIDING =====
+-- ===== SAFE WINDOW HIDING =====
 local function hideCheatEngineWindow()
-    if HIDE_CE_WINDOW then
-        print("[Stealth] Hiding Cheat Engine window...")
+    if SAFE_STEALTH.hideWindow then
+        print("[Stealth] Hiding Cheat Engine window (SAFE MODE)...")
         
         local mainForm = getMainForm()
         if mainForm then
-            -- Hide main window
-            mainForm.Visible = false
+            pcall(function()
+                -- SAFE: Just hide the window
+                mainForm.Visible = false
+                print("[Stealth] ✓ Window hidden")
+            end)
             
-            -- Change window title
-            mainForm.Caption = FAKE_WINDOW_TITLE
+            pcall(function()
+                -- SAFE: Hide from taskbar
+                if SAFE_STEALTH.hideFromTaskbar then
+                    mainForm.ShowInTaskBar = false
+                    print("[Stealth] ✓ Hidden from taskbar")
+                end
+            end)
             
-            -- Hide from taskbar
-            mainForm.ShowInTaskBar = false
+            pcall(function()
+                -- SAFE: Change window title (doesn't crash)
+                mainForm.Caption = FAKE_WINDOW_TITLE
+                print("[Stealth] ✓ Window title changed")
+            end)
             
-            -- Make it a tool window (doesn't show in Alt+Tab)
-            mainForm.FormStyle = fsStayOnTop
-            mainForm.BorderStyle = bsNone
+            pcall(function()
+                -- SAFE: Minimize to tray
+                if SAFE_STEALTH.minimizeToTray then
+                    mainForm.WindowState = wsMinimized
+                    print("[Stealth] ✓ Minimized to tray")
+                end
+            end)
             
-            print("[Stealth] Window hidden and renamed")
+            -- DON'T change FormStyle or BorderStyle (causes crash)
         end
         
-        -- Hide all CE windows
+        -- Hide other CE windows (SAFE)
         local forms = {
             "frmAutoInject",
             "frmMemoryView",
@@ -91,6 +118,8 @@ local function hideCheatEngineWindow()
                 end
             end)
         end
+        
+        print("[Stealth] All windows hidden safely")
     end
 end
 
@@ -339,48 +368,49 @@ local function bypassThreadDetection()
     end)
 end
 
--- ===== INITIALIZE ALL BYPASSES =====
+-- ===== SAFE INITIALIZE =====
 local function initializeStealth()
     print("[Stealth Injector] ═══════════════════════════════════")
-    print("[Stealth Injector] Initializing stealth systems...")
+    print("[Stealth Injector] Initializing SAFE stealth mode...")
     print("[Stealth Injector] ═══════════════════════════════════")
     
-    -- Phase 1: Hide CE
-    hideCheatEngineProcess()
+    -- Phase 1: Hide CE Window (SAFE - won't crash)
+    print("[Stealth Injector] Phase 1: Hiding windows...")
     hideCheatEngineWindow()
     
-    -- Phase 2: Hook detection functions
-    hookAntiCheatDetection()
+    -- Phase 2: Bypass Debugger Detection (SAFE)
+    if SAFE_STEALTH.bypassDebugger then
+        print("[Stealth Injector] Phase 2: Bypassing debugger detection...")
+        bypassDebuggerDetection()
+    end
     
-    -- Phase 3: Bypass debugger detection
-    bypassDebuggerDetection()
-    
-    -- Phase 4: Bypass memory scan detection
-    bypassMemoryScanDetection()
-    
-    -- Phase 5: Bypass integrity checks
-    bypassIntegrityChecks()
-    
-    -- Phase 6: Bypass CRC checks
-    bypassCRCChecks()
-    
-    -- Phase 7: Bypass driver detection
-    bypassDriverDetection()
-    
-    -- Phase 8: Bypass handle detection
-    bypassHandleDetection()
-    
-    -- Phase 9: Bypass thread detection
-    bypassThreadDetection()
+    -- SKIP RISKY OPERATIONS (these cause crashes):
+    -- - Process renaming
+    -- - API hooking
+    -- - Integrity checks
+    -- - CRC checks
+    -- - Driver detection
+    -- - Handle detection
+    -- - Thread detection
     
     print("[Stealth Injector] ═══════════════════════════════════")
-    print("[Stealth Injector] ✓ All stealth systems initialized!")
-    print("[Stealth Injector] ✓ Cheat Engine is now invisible!")
-    print("[Stealth Injector] ✓ Process name: " .. FAKE_PROCESS_NAME)
-    print("[Stealth Injector] ✓ Window title: " .. FAKE_WINDOW_TITLE)
+    print("[Stealth Injector] ✓ SAFE stealth mode initialized!")
+    print("[Stealth Injector] ✓ CE window hidden")
+    print("[Stealth Injector] ✓ Hidden from taskbar")
+    print("[Stealth Injector] ✓ Debugger detection bypassed")
     print("[Stealth Injector] ═══════════════════════════════════")
-    print("[Stealth Injector] You can now use CE safely!")
-    print("[Stealth Injector] Metin2 anti-cheat will not detect it.")
+    print("[Stealth Injector] ⚠️  SAFE MODE: Some features disabled")
+    print("[Stealth Injector] ⚠️  This prevents Metin2 from crashing")
+    print("[Stealth Injector] ✓ You can now use CE without crash!")
+    print("[Stealth Injector] ═══════════════════════════════════")
+    
+    -- Show what's enabled
+    print("[Stealth Injector] Enabled features:")
+    print("[Stealth Injector] ✓ Window hiding: " .. (SAFE_STEALTH.hideWindow and "ON" or "OFF"))
+    print("[Stealth Injector] ✓ Taskbar hiding: " .. (SAFE_STEALTH.hideFromTaskbar and "ON" or "OFF"))
+    print("[Stealth Injector] ✓ Minimize to tray: " .. (SAFE_STEALTH.minimizeToTray and "ON" or "OFF"))
+    print("[Stealth Injector] ✓ Debugger bypass: " .. (SAFE_STEALTH.bypassDebugger and "ON" or "OFF"))
+    print("[Stealth Injector] ═══════════════════════════════════")
 end
 
 -- ===== AUTO START =====
