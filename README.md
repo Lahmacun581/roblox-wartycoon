@@ -11,8 +11,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Lahmacun581/roblox-wa
 -- Türk Sohbet Oyunu
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/turksohbet.lua"))()
 
--- Military Tycoon (Coming Soon)
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/militarytycoon.lua"))()
+-- Tank Battle
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/tank_battle.lua"))()
 ```
 
 ## 📁 İçerik
@@ -37,7 +37,17 @@ Gelişmiş War Tycoon oyun scripti - Para, ESP, Teleport ve bypass özellikleri
 - 🎨 **Modern GUI** - 480x420 boyutunda, sürüklenebilir
 - 📋 **RemoteEvent Explorer** - Tüm RemoteEvent'leri listele ve seç
 
-### 👑 Royale High GUI (`royalehigh.lua`)
+### �️ Tank Battle GUI (`tank_battle.lua`)
+Tank tabanlı savaş oyunları için özel hub.
+
+**Özellikler:**
+- 🚀 **Speed Boost** - Hız çarpanı ile tank veya karakter hızını artırma
+- 🔥 **Rapid Fire** - Olası tank atış remotelarını hızlıca çağırma
+- 🎯 **Aim Assist** - En yakın hedefe yönlendirme destekçisi
+- 🧭 **Remote Scan** - Tank kontrol/ateş remotelarını tarama
+- 🎛️ **Özelleştirilebilir sliderlar** - Fire Delay, Aim FOV, Speed Multiplier
+
+### �👑 Royale High GUI (`royalehigh.lua`)
 Royale High için gelişmiş araç seti (WIP)
 
 **Özellikler:**
