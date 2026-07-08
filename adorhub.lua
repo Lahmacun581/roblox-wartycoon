@@ -6,27 +6,88 @@
     ╚═══════════════════════════════════════════════════════════╝
 ]]
 
--- Cleanup eski GUI
-if getgenv().AdorHUB then
-    pcall(function()
-        if getgenv().AdorHUB.ScreenGui then
-            getgenv().AdorHUB.ScreenGui:Destroy()
-        end
+local function safeDisconnect(conn)
+    if conn and typeof(conn.Disconnect) == "function" then
+        pcall(function()
+            conn:Disconnect()
+        end)
+    end
+end
+
+local function safeDestroy(instance)
+    if instance and typeof(instance.Destroy) == "function" then
+        pcall(function()
+            instance:Destroy()
+        end)
+    end
+end
+
+local function cleanupOldGUI()
+    if getgenv().AdorHUB then
+        pcall(function()
+            if getgenv().AdorHUB.ScreenGui then
+                getgenv().AdorHUB.ScreenGui:Destroy()
+            end
+        end)
+
         if getgenv().AdorHUB.Connections then
             for _, conn in pairs(getgenv().AdorHUB.Connections) do
-                conn:Disconnect()
+                safeDisconnect(conn)
             end
         end
-    end)
-    print("[AdorHUB] Eski GUI temizlendi")
+    end
 end
+
+local function notify(title, text, duration)
+    pcall(function()
+        local StarterGui = game:GetService("StarterGui")
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = duration or 3
+        })
+    end)
+end
+
+local function registerCleanup(name, fn)
+    if type(name) ~= "string" or type(fn) ~= "function" then
+        return
+    end
+    getgenv().AdorHUB.CleanupTasks[name] = fn
+end
+
+local function disableAllFeatures()
+    for name, cleanupFn in pairs(getgenv().AdorHUB.CleanupTasks) do
+        pcall(function()
+            cleanupFn()
+        end)
+    end
+    for key in pairs(getgenv().AdorHUB.Enabled) do
+        getgenv().AdorHUB.Enabled[key] = false
+    end
+    notify("AdorHUB", "Tüm özellikler kapatıldı.", 2)
+end
+
+local function trackConnection(conn)
+    if conn and typeof(conn.Disconnect) == "function" then
+        table.insert(getgenv().AdorHUB.Connections, conn)
+    end
+end
+
+cleanupOldGUI()
 
 -- Global state
 getgenv().AdorHUB = {
     Version = "2.0",
     ScreenGui = nil,
     Connections = {},
-    Enabled = {}
+    Enabled = {},
+    History = {},
+    Visuals = {},
+    CleanupTasks = {},
+    Values = {
+        AntiBanMaxSpeed = 120
+    }
 }
 
 -- Services
@@ -36,6 +97,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 
 -- ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
@@ -322,6 +384,7 @@ end
 local PlayerTab = createTab("Player", "🏃", Color3.fromRGB(100, 150, 255))
 local CombatTab = createTab("Combat", "⚔️", Color3.fromRGB(255, 100, 100))
 local VisualsTab = createTab("Visuals", "👁️", Color3.fromRGB(100, 255, 150))
+local ScriptsTab = createTab("Scripts", "📂", Color3.fromRGB(255, 185, 60))
 local MiscTab = createTab("Misc", "⚙️", Color3.fromRGB(200, 150, 255))
 
 -- Open first tab
@@ -383,14 +446,13 @@ CloseBtn.MouseButton1Click:Connect(function()
     
     -- Cleanup
     pcall(function()
+        disableAllFeatures()
         if getgenv().AdorHUB.Connections then
             for _, conn in pairs(getgenv().AdorHUB.Connections) do
-                conn:Disconnect()
+                safeDisconnect(conn)
             end
         end
-        ScreenGui:Destroy()
-    end)
-    
+        safeDestroy(ScreenGui)
     getgenv().AdorHUB = nil
     print("[AdorHUB] GUI kapatıldı")
 end)
@@ -417,11 +479,7 @@ TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.Ea
 
 -- Welcome notification
 task.wait(0.5)
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "AdorHUB",
-    Text = "Başarıyla yüklendi! v1.0",
-    Duration = 3
-})
+notify("AdorHUB", "Başarıyla yüklendi! v2.0", 3)
 
 -- Helper function to create buttons
 local function createButton(parent, text, color, callback)
@@ -653,20 +711,47 @@ do
         end
     end)
     
+    registerCleanup("SpeedHack", function()
+        getgenv().AdorHUB.Enabled.Speed = false
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 16
+        end
+    end)
+
     createSlider(PlayerTab, "   Speed Value", 16, 500, 100, function(value)
         getgenv().AdorHUB.SpeedValue = value
         print("[AdorHUB] Speed set to: " .. value)
     end)
-    
-    -- Speed Loop (Always running)
-    RunService.Heartbeat:Connect(function()
+
+    getgenv().AdorHUB.Enabled.AntiBan = false
+    createToggle(PlayerTab, "🛡 Anti-Ban Safe Mode", Color3.fromRGB(100, 255, 150), function(enabled)
+        getgenv().AdorHUB.Enabled.AntiBan = enabled
+        print("[AdorHUB] Anti-Ban Safe Mode: " .. tostring(enabled))
+    end)
+
+    registerCleanup("AntiBanMode", function()
+        getgenv().AdorHUB.Enabled.AntiBan = false
+    end)
+
+    createSlider(PlayerTab, "   Max Safe Speed", 16, 120, 120, function(value)
+        getgenv().AdorHUB.Values.AntiBanMaxSpeed = value
+        print("[AdorHUB] Anti-Ban Max Speed: " .. value)
+    end)
+
+    trackConnection(RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.Speed then
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
-                char.Humanoid.WalkSpeed = getgenv().AdorHUB.SpeedValue
+                local speed = getgenv().AdorHUB.SpeedValue
+                if getgenv().AdorHUB.Enabled.AntiBan then
+                    speed = math.min(speed, getgenv().AdorHUB.Values.AntiBanMaxSpeed)
+                    speed = math.clamp(speed + math.random(-2, 2), 16, getgenv().AdorHUB.Values.AntiBanMaxSpeed)
+                end
+                char.Humanoid.WalkSpeed = speed
             end
         end
-    end)
+    end))
     
     -- Super Jump
     getgenv().AdorHUB.Enabled.Jump = false
@@ -683,15 +768,22 @@ do
         end
     end)
     
-    -- Jump Loop
-    RunService.Heartbeat:Connect(function()
+    registerCleanup("SuperJump", function()
+        getgenv().AdorHUB.Enabled.Jump = false
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.JumpPower = 50
+        end
+    end)
+
+    trackConnection(RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.Jump then
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.JumpPower = 120
             end
         end
-    end)
+    end))
     
     -- Infinite Jump
     getgenv().AdorHUB.Enabled.InfJump = false
@@ -701,15 +793,18 @@ do
         print("[AdorHUB] Infinite Jump: " .. tostring(enabled))
     end)
     
-    -- Infinite Jump Handler
-    UserInputService.JumpRequest:Connect(function()
+    registerCleanup("InfiniteJump", function()
+        getgenv().AdorHUB.Enabled.InfJump = false
+    end)
+
+    trackConnection(UserInputService.JumpRequest:Connect(function()
         if getgenv().AdorHUB.Enabled.InfJump then
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             end
         end
-    end)
+    end))
     
     -- Fly with Slider
     local flyEnabled = false
@@ -769,7 +864,7 @@ do
                 end
             end)
             
-            getgenv().AdorHUB.Connections.Fly = flyConn
+            trackConnection(flyConn)
         else
             if flyConn then 
                 flyConn:Disconnect()
@@ -778,6 +873,16 @@ do
             if flyBG then flyBG:Destroy() flyBG = nil end
             if flyBV then flyBV:Destroy() flyBV = nil end
         end
+    end)
+
+    registerCleanup("FlyMode", function()
+        flyEnabled = false
+        if flyConn then
+            flyConn:Disconnect()
+            flyConn = nil
+        end
+        if flyBG then flyBG:Destroy() flyBG = nil end
+        if flyBV then flyBV:Destroy() flyBV = nil end
     end)
     
     createSlider(PlayerTab, "   Fly Speed", 10, 200, 50, function(value)
@@ -803,8 +908,19 @@ do
         end
     end)
     
-    -- Noclip Loop
-    RunService.Stepped:Connect(function()
+    registerCleanup("Noclip", function()
+        getgenv().AdorHUB.Enabled.Noclip = false
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end)
+
+    trackConnection(RunService.Stepped:Connect(function()
         if getgenv().AdorHUB.Enabled.Noclip then
             local char = LocalPlayer.Character
             if char then
@@ -815,7 +931,7 @@ do
                 end
             end
         end
-    end)
+    end))
     
     -- God Mode (Advanced - Anti-Damage + Force Field)
     getgenv().AdorHUB.Enabled.God = false
@@ -842,9 +958,18 @@ do
         end
     end)
     
-    -- God Mode Loop (Optimized for FPS)
-    local godFrameCount = 0
-    RunService.Heartbeat:Connect(function()
+    registerCleanup("GodMode", function()
+        getgenv().AdorHUB.Enabled.God = false
+        local char = LocalPlayer.Character
+        if char then
+            local ff = char:FindFirstChild("AdorHUB_FF")
+            if ff then
+                ff:Destroy()
+            end
+        end
+    end)
+
+    trackConnection(RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.God then
             godFrameCount = godFrameCount + 1
             
@@ -901,10 +1026,9 @@ do
                 end
             end
         end
-    end)
+    end))
     
-    -- God Mode: Prevent death on respawn
-    LocalPlayer.CharacterAdded:Connect(function(char)
+    local godRespawnConn = LocalPlayer.CharacterAdded:Connect(function(char)
         if getgenv().AdorHUB.Enabled.God then
             task.wait(0.1)
             local hum = char:FindFirstChild("Humanoid")
@@ -919,6 +1043,7 @@ do
             end
         end
     end)
+    trackConnection(godRespawnConn)
     
     -- Teleport to Mouse
     createButton(PlayerTab, "🎯 Teleport to Mouse", Color3.fromRGB(150, 150, 255), function()
@@ -961,9 +1086,13 @@ do
                     end
                 end
             end)
+            trackConnection(recoilConn)
         else
-            if recoilConn then recoilConn:Disconnect() end
+            if recoilConn then recoilConn:Disconnect() recoilConn = nil end
         end
+    end)
+    registerCleanup("NoRecoil", function()
+        if recoilConn then recoilConn:Disconnect() recoilConn = nil end
     end)
     
     -- No Spread
@@ -987,9 +1116,13 @@ do
                     end
                 end
             end)
+            trackConnection(spreadConn)
         else
-            if spreadConn then spreadConn:Disconnect() end
+            if spreadConn then spreadConn:Disconnect() spreadConn = nil end
         end
+    end)
+    registerCleanup("NoSpread", function()
+        if spreadConn then spreadConn:Disconnect() spreadConn = nil end
     end)
     
     -- Silent Aim
@@ -1076,6 +1209,19 @@ do
                         head.Transparency = 0
                         head.CanCollide = true
                     end
+                end
+            end
+        end
+    end)
+    registerCleanup("HitboxExpander", function()
+        getgenv().AdorHUB.Enabled.Hitbox = false
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local head = player.Character:FindFirstChild("Head")
+                if head then
+                    head.Size = Vector3.new(2, 1, 1)
+                    head.Transparency = 0
+                    head.CanCollide = true
                 end
             end
         end
@@ -1366,6 +1512,10 @@ do
         end
     end
     
+    local ESPPlayersAddedConn
+    local ESPPlayersRemovingConn
+    local ESPCleanupCoroutine
+
     -- Main ESP Toggle
     createToggle(VisualsTab, "👁️ ESP Master", Color3.fromRGB(100, 255, 150), function(enabled)
         ESPEnabled = enabled
@@ -1381,15 +1531,16 @@ do
             end
             
             -- Handle new players joining
-            Players.PlayerAdded:Connect(function(player)
+            ESPPlayersAddedConn = Players.PlayerAdded:Connect(function(player)
                 if ESPEnabled and player ~= LocalPlayer then
                     task.wait(1) -- Wait for character to load
                     createESP(player)
                 end
             end)
+            trackConnection(ESPPlayersAddedConn)
             
             -- Handle player leaving
-            Players.PlayerRemoving:Connect(function(player)
+            ESPPlayersRemovingConn = Players.PlayerRemoving:Connect(function(player)
                 if ESPObjects[player] then
                     local data = ESPObjects[player]
                     pcall(function()
@@ -1401,9 +1552,10 @@ do
                     ESPObjects[player] = nil
                 end
             end)
+            trackConnection(ESPPlayersRemovingConn)
             
             -- Continuous check for missing ESP (every 5 seconds)
-            task.spawn(function()
+            ESPCleanupCoroutine = task.spawn(function()
                 while ESPEnabled do
                     task.wait(5)
                     if ESPEnabled then
@@ -1425,12 +1577,17 @@ do
                     updateESP()
                 end
             end)
+            trackConnection(ESPUpdateConn)
             
             print("[AdorHUB] ESP Master enabled")
         else
             if ESPUpdateConn then
                 ESPUpdateConn:Disconnect()
                 ESPUpdateConn = nil
+            end
+            
+            if ESPCleanupCoroutine then
+                ESPCleanupCoroutine = nil
             end
             
             -- Clean all ESP
@@ -1446,6 +1603,22 @@ do
             
             print("[AdorHUB] ESP Master disabled")
         end
+    end)
+    registerCleanup("ESPMaster", function()
+        ESPEnabled = false
+        if ESPUpdateConn then ESPUpdateConn:Disconnect() ESPUpdateConn = nil end
+        if ESPPlayersAddedConn then ESPPlayersAddedConn:Disconnect() ESPPlayersAddedConn = nil end
+        if ESPPlayersRemovingConn then ESPPlayersRemovingConn:Disconnect() ESPPlayersRemovingConn = nil end
+        if ESPCleanupCoroutine then ESPCleanupCoroutine = nil end
+        for player, data in pairs(ESPObjects) do
+            pcall(function()
+                if data.billboard then data.billboard:Destroy() end
+                if data.box then data.box:Remove() end
+                if data.boxOutline then data.boxOutline:Remove() end
+                if data.tracer then data.tracer:Remove() end
+            end)
+        end
+        ESPObjects = {}
     end)
     
     -- ESP Options (All visible by default)
@@ -1494,9 +1667,20 @@ do
             end
         end
     end)
+    registerCleanup("Chams", function()
+        getgenv().AdorHUB.Enabled.Chams = false
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                for _, part in pairs(player.Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part:FindFirstChild("AdorHUB_Cham") then
+                        part.AdorHUB_Cham:Destroy()
+                    end
+                end
+            end
+        end
+    end)
     
-    -- Chams Loop
-    RunService.Heartbeat:Connect(function()
+    trackConnection(RunService.Heartbeat:Connect(function()
         if getgenv().AdorHUB.Enabled.Chams then
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
@@ -1528,7 +1712,26 @@ do
                 end
             end
         end
-    end)
+    end))
+end
+
+-- ===== SCRIPTS TAB =====
+do
+    local function createScriptButton(name, url)
+        return createButton(ScriptsTab, "🔗 " .. name, Color3.fromRGB(255, 185, 60), function()
+            pcall(function()
+                local scriptSource = game:HttpGet(url)
+                loadstring(scriptSource)()
+            end)
+        end)
+    end
+
+    createScriptButton("AdorHUB", "https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/adorhub.lua")
+    createScriptButton("Warfare Tycoon", "https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/warfare.lua")
+    createScriptButton("Military Tycoon", "https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/militarytycoon.lua")
+    createScriptButton("Royale High", "https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/royalehigh.lua")
+    createScriptButton("Türk Sohbet", "https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/turksohbet.lua")
+    createScriptButton("Tank Battle", "https://raw.githubusercontent.com/Lahmacun581/roblox-wartycoon/main/tank_battle.lua")
 end
 
 -- ===== MISC TAB =====
@@ -1546,6 +1749,20 @@ do
     local creditsCorner = Instance.new("UICorner")
     creditsCorner.CornerRadius = UDim.new(0, 8)
     creditsCorner.Parent = creditsLabel
+
+    createButton(MiscTab, "⏹️ Geri Al (Tüm Özellikleri Kapat)", Color3.fromRGB(200, 100, 100), function()
+        disableAllFeatures()
+    end)
+
+    createButton(MiscTab, "🧹 Temizle ve Kapat", Color3.fromRGB(100, 100, 255), function()
+        notify("AdorHUB", "GUI kapatılıyor ve kayıt temizleniyor.", 2)
+        disableAllFeatures()
+        for _, conn in pairs(getgenv().AdorHUB.Connections) do
+            safeDisconnect(conn)
+        end
+        safeDestroy(ScreenGui)
+        getgenv().AdorHUB = nil
+    end)
 end
 
 print("[AdorHUB] GUI başarıyla yüklendi!")
